@@ -59,7 +59,6 @@
   .nav-item[data-tab="home"] .ic{background:#FDE8F3;}
   .nav-item[data-tab="students"] .ic{background:#E8EFF8;}
   .nav-item[data-tab="session"] .ic{background:#E4F5EE;}
-  .nav-item[data-tab="duckrace"] .ic{background:#FFF3D6;}
   .nav-item[data-tab="schedule"] .ic{background:#FBF1DE;}
   .nav-item[data-tab="stats"] .ic{background:#F2EBFB;}
   .nav-item[data-tab="report"] .ic{background:#FDEAEF;}
@@ -294,42 +293,6 @@
   /* monthly report (Báo cáo tháng) */
   .report-card{border:1px solid var(--border);border-radius:16px;padding:20px;}
 
-  /* trò chơi Đua vịt */
-  .duck-picker{display:flex;flex-wrap:wrap;gap:8px;}
-  .duck-check{display:flex;align-items:center;gap:6px;background:#F8F9FC;border:1px solid var(--border);border-radius:999px;padding:6px 14px 6px 8px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s ease;user-select:none;}
-  .duck-check:hover{border-color:var(--primary);}
-  .duck-check input{accent-color:var(--primary);cursor:pointer;}
-  .duck-check.called{opacity:.5;}
-  .duck-check .called-tag{font-size:11px;color:var(--green);font-weight:700;}
-  #duckArena{position:relative;}
-  .duck-lane{position:relative;height:48px;display:flex;align-items:center;border-bottom:1px dashed rgba(255,255,255,.5);}
-  .duck-lane:last-child{border-bottom:none;}
-  .duck-lane-name{width:120px;flex-shrink:0;font-size:13px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px;}
-  .duck-lane-path{position:relative;flex:1;height:100%;overflow:hidden;background:linear-gradient(180deg,#BEE3FF 0%,#8FCBF5 100%);}
-  .duck-lane-path::before{content:'';position:absolute;inset:0;z-index:1;opacity:.55;
-    background-image:repeating-linear-gradient(100deg, rgba(255,255,255,.35) 0 10px, transparent 10px 42px);
-    animation:duckWaterFlow 2.2s linear infinite;}
-  @keyframes duckWaterFlow{from{background-position-x:0;}to{background-position-x:-84px;}}
-  .duck-finish{position:absolute;right:14px;top:0;bottom:0;width:2px;z-index:2;background:repeating-linear-gradient(180deg,var(--text) 0 6px, transparent 6px 12px);opacity:.6;}
-  .duck-runner{position:absolute;top:50%;left:4px;z-index:3;transform:translateY(-50%);font-size:26px;transition-property:left;transition-timing-function:linear;will-change:left;line-height:1;}
-  .duck-runner.racing{animation:duckBob .3s ease-in-out infinite;}
-  .duck-runner.duck-winner{animation:duckWinnerPop .6s ease;}
-  @keyframes duckBob{0%,100%{transform:translateY(-50%) rotate(0deg);}50%{transform:translateY(-62%) rotate(-10deg);}}
-  @keyframes duckWinnerPop{0%{transform:translateY(-50%) scale(1);}50%{transform:translateY(-50%) scale(1.5);}100%{transform:translateY(-50%) scale(1.2);}}
-  #duckResult{text-align:center;margin-top:14px;font-size:19px;font-weight:800;}
-  #duckCountdown{position:absolute;inset:0;z-index:10;display:none;align-items:center;justify-content:center;font-size:96px;font-weight:800;color:#fff;text-shadow:0 4px 14px rgba(0,0,0,.35);background:rgba(108,147,199,.35);border-radius:16px;}
-  #duckCountdown.show{display:flex;}
-  #duckCountdown span{animation:duckCountdownPop .8s ease;}
-  @keyframes duckCountdownPop{0%{transform:scale(0.4);opacity:0;}30%{transform:scale(1.15);opacity:1;}100%{transform:scale(1);opacity:1;}}
-  #duckArena:fullscreen{background:linear-gradient(180deg,#BEE3FF,#8FCBF5);display:flex;flex-direction:column;justify-content:center;padding:5vh 6vw;}
-  #duckArena:-webkit-full-screen{background:linear-gradient(180deg,#BEE3FF,#8FCBF5);display:flex;flex-direction:column;justify-content:center;padding:5vh 6vw;}
-  #duckArena:fullscreen #duckTrack, #duckArena:-webkit-full-screen #duckTrack{max-width:1000px;width:100%;margin:0 auto;}
-  #duckArena:fullscreen .duck-lane, #duckArena:-webkit-full-screen .duck-lane{height:64px;}
-  #duckArena:fullscreen .duck-runner, #duckArena:-webkit-full-screen .duck-runner{font-size:42px;}
-  #duckArena:fullscreen .duck-lane-name, #duckArena:-webkit-full-screen .duck-lane-name{font-size:17px;width:170px;color:#2c3a55;}
-  #duckArena:fullscreen #duckCountdown, #duckArena:-webkit-full-screen #duckCountdown{font-size:160px;}
-  #duckArena:fullscreen #duckResult, #duckArena:-webkit-full-screen #duckResult{font-size:28px;margin-top:24px;}
-
   @media print{
     body *{visibility:hidden;}
     #reportPreviewCard, #reportPreviewCard *{visibility:visible;}
@@ -350,7 +313,6 @@
       <button class="nav-item active" data-tab="home"><span class="ic">🏡</span>Trang chủ</button>
       <button class="nav-item" data-tab="students"><span class="ic">🧒</span>Học sinh</button>
       <button class="nav-item" data-tab="session"><span class="ic">✅</span>Buổi học</button>
-      <button class="nav-item" data-tab="duckrace"><span class="ic">🦆</span>Đua vịt</button>
       <button class="nav-item" data-tab="schedule"><span class="ic">🗓️</span>Lịch học</button>
       <button class="nav-item" data-tab="stats"><span class="ic">📈</span>Thống kê</button>
       <button class="nav-item" data-tab="report"><span class="ic">📮</span>Báo cáo tháng</button>
@@ -655,35 +617,6 @@
         <div id="reportBatchResult" style="display:none;">
           <div id="reportBatchList"></div>
           <div id="reportBatchEmpty" class="empty">Chọn tháng rồi bấm "Tạo báo cáo cho cả lớp" để bắt đầu.</div>
-        </div>
-      </section>
-
-      <section id="tab-duckrace" style="display:none;">
-        <div class="card">
-          <div class="row between" style="align-items:center;">
-            <h3 style="margin:0;">🦆 Đua vịt gọi tên</h3>
-            <div class="row">
-              <button class="btn secondary small" onclick="duckSelectAll(true)">Chọn tất cả</button>
-              <button class="btn secondary small" onclick="duckSelectAll(false)">Bỏ chọn tất cả</button>
-            </div>
-          </div>
-          <div class="muted" style="margin-top:4px;font-size:12px;">Tích chọn học sinh tham gia (mặc định cả lớp) rồi bấm "Bắt đầu đua" — vịt về nhất là em được gọi trả lời/kiểm tra miệng. Em đã được gọi sẽ tự động không đua nữa trong buổi hôm nay.</div>
-          <div id="duckStudentPicker" class="duck-picker" style="margin-top:12px;"></div>
-          <div class="row" style="margin-top:14px;">
-            <button class="btn" id="duckStartBtn" onclick="startDuckRace()">🏁 Bắt đầu đua</button>
-            <button class="btn secondary" onclick="resetDuckCalled()">♻️ Reset danh sách đã gọi</button>
-          </div>
-        </div>
-        <div class="card" id="duckTrackCard" style="display:none;">
-          <div class="row between" style="align-items:center;margin-bottom:10px;">
-            <div class="muted" style="font-size:12px;">🏊 Cuộc đua đang diễn ra...</div>
-            <button class="btn secondary small" onclick="toggleDuckFullscreen()">⛶ Toàn màn hình</button>
-          </div>
-          <div id="duckArena">
-            <div id="duckTrack"></div>
-            <div id="duckCountdown"><span></span></div>
-            <div id="duckResult" style="display:none;"></div>
-          </div>
         </div>
       </section>
 
@@ -1246,7 +1179,7 @@ function saveClassInfo(){
 }
 
 // ================= NAVIGATION =================
-const TAB_TITLES = {home:'Trang chủ', students:'Học sinh', session:'Buổi học', duckrace:'Đua vịt', schedule:'Lịch học', criteria:'Tiêu chí', stats:'Thống kê', report:'Báo cáo tháng'};
+const TAB_TITLES = {home:'Trang chủ', students:'Học sinh', session:'Buổi học', schedule:'Lịch học', criteria:'Tiêu chí', stats:'Thống kê', report:'Báo cáo tháng'};
 function goTab(tab){
   document.querySelectorAll('.nav-item[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   Object.keys(TAB_TITLES).forEach(t=>{
@@ -1257,7 +1190,6 @@ function goTab(tab){
   if(tab==='home') renderHomeTab();
   if(tab==='students') renderStudents();
   if(tab==='session') renderSessionTab();
-  if(tab==='duckrace') renderDuckTab();
   if(tab==='schedule') renderScheduleTab();
   if(tab==='criteria') renderCriteriaTab();
   if(tab==='stats') renderStatsTab();
@@ -2907,164 +2839,6 @@ function downloadReportPDF(){ downloadReportPDFFor(null); }
 function printReport(){
   if(!reportContext){ toast('Vui lòng tạo báo cáo trước'); return; }
   window.print();
-}
-
-// ================= TRÒ CHƠI ĐUA VỊT (gọi tên trả lời / kiểm tra miệng) =================
-// Lưu danh sách học sinh "đã được gọi" theo NGÀY (tự reset khi qua ngày mới), để tránh gọi
-// trúng lại 1 em nhiều lần trong cùng buổi học — dữ liệu chỉ lưu trên máy (không cần đồng bộ).
-const LS_DUCK_CALLED = 'qlLop1_duckCalled';
-let duckCalled = JSON.parse(localStorage.getItem(LS_DUCK_CALLED) || 'null') || {date:'', ids:[]};
-let duckChecked = {}; // studentId -> có tham gia đua hay không, chỉ tồn tại trong phiên làm việc này
-let duckRacing = false;
-
-function todayStr(){ return new Date().toISOString().slice(0,10); }
-function saveDuckCalled(){ localStorage.setItem(LS_DUCK_CALLED, JSON.stringify(duckCalled)); }
-function ensureDuckCalledFresh(){
-  if(duckCalled.date !== todayStr()){ duckCalled = {date: todayStr(), ids:[]}; saveDuckCalled(); }
-}
-
-function renderDuckTab(){
-  ensureDuckCalledFresh();
-  const sorted = [...students].sort(byGivenName);
-  sorted.forEach(s=>{ if(!(s.id in duckChecked)) duckChecked[s.id] = true; });
-  const picker = document.getElementById('duckStudentPicker');
-  const startBtn = document.getElementById('duckStartBtn');
-  if(!sorted.length){
-    picker.innerHTML = '<div class="empty">Lớp chưa có học sinh nào.</div>';
-    startBtn.disabled = true;
-    return;
-  }
-  startBtn.disabled = false;
-  picker.innerHTML = sorted.map(s=>{
-    const called = duckCalled.ids.includes(s.id);
-    return `<label class="duck-check${called?' called':''}">
-      <input type="checkbox" ${duckChecked[s.id] ? 'checked' : ''} onchange="duckToggle('${s.id}', this.checked)">
-      ${escapeHtml(s.name)}${called ? ' <span class="called-tag">✓ đã gọi</span>' : ''}
-    </label>`;
-  }).join('');
-}
-function duckToggle(id, val){ duckChecked[id] = val; }
-function duckSelectAll(val){
-  students.forEach(s=> duckChecked[s.id] = val);
-  renderDuckTab();
-}
-function resetDuckCalled(){
-  duckCalled = {date: todayStr(), ids:[]};
-  saveDuckCalled();
-  document.getElementById('duckTrackCard').style.display = 'none';
-  renderDuckTab();
-  toast('Đã reset danh sách học sinh đã gọi hôm nay');
-}
-
-function startDuckRace(){
-  if(duckRacing) return;
-  ensureDuckCalledFresh();
-  const participants = students.filter(s=> duckChecked[s.id] && !duckCalled.ids.includes(s.id));
-  if(!participants.length){
-    toast('Không còn em nào để đua — bấm "Reset danh sách đã gọi" hoặc tích chọn thêm học sinh');
-    return;
-  }
-  const sorted = [...participants].sort(byGivenName);
-  const winnerIdx = Math.floor(Math.random() * sorted.length);
-  const winner = sorted[winnerIdx];
-  // con vịt thắng luôn có thời gian chạy ngắn nhất — các con còn lại chạy chậm hơn ngẫu nhiên,
-  // vừa đảm bảo đúng 1 em được chọn ngẫu nhiên công bằng, vừa nhìn giống 1 cuộc đua thật
-  const winnerDuration = 2.2 + Math.random() * 0.8;
-  const durations = sorted.map((s,i)=> i===winnerIdx ? winnerDuration : +(winnerDuration + 0.6 + Math.random()*2).toFixed(2));
-
-  duckRacing = true;
-  const startBtn = document.getElementById('duckStartBtn');
-  startBtn.disabled = true;
-  startBtn.textContent = '🏁 Đang đua...';
-  document.getElementById('duckTrackCard').style.display = '';
-  const resultBox = document.getElementById('duckResult');
-  resultBox.style.display = 'none';
-  resultBox.innerHTML = '';
-
-  // vẽ sẵn các lane ở vạch xuất phát trong lúc đếm ngược, để mọi người thấy trước ai đang đua
-  const track = document.getElementById('duckTrack');
-  track.innerHTML = sorted.map((s,i)=>`
-    <div class="duck-lane">
-      <div class="duck-lane-name">${escapeHtml(givenName(s.name))}</div>
-      <div class="duck-lane-path">
-        <div class="duck-finish"></div>
-        <div class="duck-runner" id="duckRunner_${s.id}" style="transition-duration:${durations[i]}s;">🦆</div>
-      </div>
-    </div>
-  `).join('');
-
-  runDuckCountdown(()=> launchDucks(sorted, durations, winner));
-}
-
-// đếm ngược 3-2-1 rồi "Bơi! 🦆" trước khi vịt bắt đầu chạy, cho không khí hồi hộp giống trang tham khảo
-function runDuckCountdown(onDone){
-  const cd = document.getElementById('duckCountdown');
-  const label = cd.querySelector('span');
-  const steps = ['3', '2', '1', 'Bơi! 🦆'];
-  let i = 0;
-  cd.classList.add('show');
-  function showNext(){
-    label.textContent = steps[i];
-    label.style.animation = 'none';
-    void label.offsetWidth; // ép trình duyệt tính lại để animation chạy lại từ đầu mỗi bước
-    label.style.animation = 'duckCountdownPop .8s ease';
-    i++;
-    if(i < steps.length){
-      setTimeout(showNext, 700);
-    } else {
-      setTimeout(()=>{ cd.classList.remove('show'); onDone(); }, 550);
-    }
-  }
-  showNext();
-}
-
-// cho vịt chạy thật sự sau khi đếm ngược xong
-function launchDucks(sorted, durations, winner){
-  sorted.forEach(s=>{
-    const el = document.getElementById('duckRunner_'+s.id);
-    if(el) el.classList.add('racing');
-  });
-  // chờ DOM cập nhật xong lớp "racing" ở vị trí xuất phát rồi mới đặt đích, để transition CSS chạy đúng
-  requestAnimationFrame(()=> requestAnimationFrame(()=>{
-    sorted.forEach(s=>{
-      const el = document.getElementById('duckRunner_'+s.id);
-      if(el) el.style.left = 'calc(100% - 34px)';
-    });
-  }));
-
-  const startBtn = document.getElementById('duckStartBtn');
-  const resultBox = document.getElementById('duckResult');
-  const maxDuration = Math.max(...durations);
-  setTimeout(()=>{
-    sorted.forEach(s=>{
-      const el = document.getElementById('duckRunner_'+s.id);
-      if(el) el.classList.remove('racing');
-    });
-    const winnerEl = document.getElementById('duckRunner_'+winner.id);
-    if(winnerEl) winnerEl.classList.add('duck-winner');
-    duckCalled.ids.push(winner.id);
-    saveDuckCalled();
-    resultBox.style.display = '';
-    resultBox.innerHTML = `🎉 <span style="color:var(--primary-dark);">${escapeHtml(winner.name)}</span> được gọi trả lời!`;
-    duckRacing = false;
-    startBtn.disabled = false;
-    startBtn.textContent = '🏁 Đua tiếp';
-    renderDuckTab();
-  }, maxDuration * 1000 + 250);
-}
-
-// bật/tắt chế độ toàn màn hình cho đường đua — hữu ích khi trình chiếu cho cả lớp xem
-function toggleDuckFullscreen(){
-  const el = document.getElementById('duckArena');
-  const isFs = document.fullscreenElement || document.webkitFullscreenElement;
-  if(!isFs){
-    const req = el.requestFullscreen || el.webkitRequestFullscreen;
-    if(req) req.call(el).catch(()=> toast('Trình duyệt không hỗ trợ toàn màn hình'));
-    else toast('Trình duyệt không hỗ trợ toàn màn hình');
-  } else {
-    const exit = document.exitFullscreen || document.webkitExitFullscreen;
-    if(exit) exit.call(document);
-  }
 }
 
 // ================= LINK CHIA SẺ BÁO CÁO CHO PHỤ HUYNH (xem-bao-cao.html) =================
