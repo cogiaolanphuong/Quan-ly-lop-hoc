@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Báo cáo học tập</title>
+<link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Quicksand:wght@500;600;700&display=swap');
+  :root{
+    --primary:#8DA4D6; --primary-dark:#6B84BE; --accent:#F3A6B2; --accent-dark:#E88499;
+    --bg:#FBF7F2; --card:#ffffff; --text:#3A3550; --muted:#9691A8; --border:#ECE6F5;
+    --green:#5CAE8B; --red:#D9636F; --amber:#D9A441; --blue:#6C93C7;
+    --font-cute:'Baloo 2','Quicksand',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --shadow-soft:0 4px 16px rgba(141,164,214,.14);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-cute);padding:20px 14px 60px;}
+  .wrap{max-width:520px;margin:0 auto;}
+  .top-note{text-align:center;color:var(--muted);font-size:13px;margin-bottom:14px;}
+  .card{background:var(--card);border-radius:20px;padding:20px;box-shadow:var(--shadow-soft);border:1px solid var(--border);margin-bottom:16px;}
+  .muted{color:var(--muted);font-size:13px;}
+  select{font-family:inherit;font-size:14px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);width:100%;}
+  .btn{font-family:inherit;font-weight:700;font-size:13px;border:none;border-radius:999px;padding:9px 16px;cursor:pointer;background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(141,164,214,.3);}
+  .btn.secondary{background:#fff;color:var(--primary-dark);border:1px solid var(--border);box-shadow:none;}
+  .row{display:flex;gap:8px;flex-wrap:wrap;}
+  .empty{text-align:center;padding:50px 16px;color:var(--muted);}
+  .avatar-generic{width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto;background:linear-gradient(135deg,#FDEAEF,#F2EBFB);box-shadow:0 2px 8px rgba(141,164,214,.2);}
+  .detail-section{margin-bottom:14px;}
+  .detail-section h4{margin:0 0 6px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
+  .detail-section p{margin:2px 0;font-size:14px;}
+  .pct-low{color:var(--red);font-weight:700;}
+  .pct-ok{color:var(--green);font-weight:700;}
+  h2{margin:8px 0 2px;}
+  #loading{text-align:center;padding:60px 16px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-note">📋 Phiếu báo cáo học tập — dành cho phụ huynh</div>
+  <div id="loading">Đang tải báo cáo...</div>
+  <div id="content" style="display:none;">
+    <div class="card">
+      <label class="muted" style="font-weight:700;font-size:13px;">Chọn tháng xem báo cáo</label>
+      <select id="monthSelect" style="margin-top:6px;" onchange="renderSelectedMonth()"></select>
+    </div>
+    <div class="card" id="reportCard"></div>
+    <div class="row" style="justify-content:center;">
+      <button class="btn" onclick="downloadPDF()">📄 Tải PDF</button>
+      <button class="btn secondary" onclick="downloadImage()">🖼️ Tải ảnh</button>
+    </div>
+  </div>
+  <div id="errorBox" class="empty" style="display:none;"></div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDsFE_vAHH0rw6g-_zKtfh4IYdwPMmOEuQ",
+  authDomain: "quan-ly-lop-hoc-eb009.firebaseapp.com",
+  projectId: "quan-ly-lop-hoc-eb009",
+  storageBucket: "quan-ly-lop-hoc-eb009.firebasestorage.app",
+  messagingSenderId: "534024316441",
+  appId: "1:534024316441:web:bbb0989ecda19fc5206c88"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+function escapeHtml(str){
+  if(!str) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatDate(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  if(!y||!m||!d) return iso;
+  return `${d}/${m}/${y}`;
+}
+
+let pointerData = null;
+let monthsData = {}; // month -> report data
+let sortedMonths = [];
+
+function showError(msg){
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = 'none';
+  const box = document.getElementById('errorBox');
+  box.style.display = '';
+  box.textContent = msg;
+}
+
+async function init(){
+  const params = new URLSearchParams(location.search);
+  const token = params.get('ma');
+  if(!token){ showError('Thiếu mã liên kết. Vui lòng dùng đúng link được cô giáo gửi.'); return; }
+  try{
+    const ptrSnap = await db.collection('shares').doc(token).get();
+    if(!ptrSnap.exists){ showError('Link không hợp lệ hoặc đã bị gỡ. Vui lòng liên hệ giáo viên để lấy link mới.'); return; }
+    pointerData = ptrSnap.data();
+    const monthsSnap = await db.collection('shares').doc(token).collection('months').get();
+    if(monthsSnap.empty){ showError('Chưa có báo cáo nào được chia sẻ cho học sinh này.'); return; }
+    monthsSnap.forEach(doc=>{ monthsData[doc.id] = doc.data(); });
+    sortedMonths = Object.keys(monthsData).sort().reverse(); // mới nhất trước
+    const sel = document.getElementById('monthSelect');
+    sel.innerHTML = sortedMonths.map(m=>`<option value="${m}">${escapeHtml(monthsData[m].monthLabel || m)}</option>`).join('');
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = '';
+    renderSelectedMonth();
+  }catch(e){
+    console.warn(e);
+    showError('Không tải được báo cáo, vui lòng kiểm tra kết nối mạng và thử lại.');
+  }
+}
+
+function genderEmoji(){
+  return (pointerData && pointerData.gender === 'Nữ') ? '👧' : '🧒';
+}
+
+function renderSelectedMonth(){
+  const month = document.getElementById('monthSelect').value;
+  const ctx = monthsData[month];
+  if(!ctx) return;
+  const {att, pts, cmts, note, strengthsNote, improvementsNote, monthLabel} = ctx;
+  const positives = (pts.list||[]).filter(c=>c.type==='positive');
+  const negatives = (pts.list||[]).filter(c=>c.type==='negative');
+  document.getElementById('reportCard').innerHTML = `
+    <div style="text-align:center;margin-bottom:16px;">
+      <div class="avatar-generic">${genderEmoji()}</div>
+      <h2>${escapeHtml(pointerData.studentName || '')}</h2>
+      <div class="muted">${escapeHtml(pointerData.className || 'Lớp học')} · Báo cáo ${monthLabel || month}</div>
+    </div>
+    <div class="detail-section">
+      <h4>📅 Chuyên cần trong tháng</h4>
+      <p>Vắng có phép: <b>${att.excused||0}</b> · Vắng không phép: <b>${att.absent||0}</b> · Đi trễ: <b>${att.late||0}</b></p>
+      <p>Tỉ lệ chuyên cần: <span class="${att.pct<90?'pct-low':'pct-ok'}">${att.total ? att.pct+'%' : 'Chưa có dữ liệu'}</span></p>
+    </div>
+    <div class="detail-section">
+      <h4>🏅 Kết quả rèn luyện trong tháng</h4>
+      <p style="font-weight:800;font-size:18px;color:${pts.total>=0?'var(--green)':'var(--red)'}">${pts.total>0?'+':''}${pts.total} điểm (${pts.count} lượt chấm)</p>
+      ${positives.length ? `<p class="muted" style="margin-bottom:4px;">Điểm cộng nổi bật:</p>` + positives.map(c=>`<p>${c.icon} ${escapeHtml(c.name)} — ${c.count} lần (+${c.points})</p>`).join('') : ''}
+      ${negatives.length ? `<p class="muted" style="margin:8px 0 4px;">Cần khắc phục:</p>` + negatives.map(c=>`<p>${c.icon} ${escapeHtml(c.name)} — ${c.count} lần (${c.points})</p>`).join('') : ''}
+      ${!(pts.list && pts.list.length) ? '<p class="muted">Chưa có dữ liệu chấm điểm trong tháng.</p>' : ''}
+    </div>
+    <div class="detail-section">
+      <h4>📝 Nhận xét trong tháng (${(cmts||[]).length})</h4>
+      ${(cmts&&cmts.length) ? cmts.map(c=>`<p><b>${formatDate(c.date)}</b> · <span class="muted">${escapeHtml(c.periodLabel||'Cả ngày')}</span><br>${escapeHtml(c.text)}</p>`).join('') : '<p class="muted">Chưa có nhận xét nào trong tháng.</p>'}
+    </div>
+    <div class="detail-section">
+      <h4>🌟 Điểm mạnh trong tháng</h4>
+      <p style="white-space:pre-wrap;">${strengthsNote ? escapeHtml(strengthsNote) : 'Chưa có ghi chú'}</p>
+    </div>
+    <div class="detail-section">
+      <h4>🌱 Điểm cần cải thiện trong tháng</h4>
+      <p style="white-space:pre-wrap;">${improvementsNote ? escapeHtml(improvementsNote) : 'Chưa có ghi chú'}</p>
+    </div>
+    ${note ? `<div class="detail-section"><h4>💌 Lời nhắn của giáo viên</h4><p style="white-space:pre-wrap;">${escapeHtml(note)}</p></div>` : ''}
+  `;
+}
+
+function safeFileName(str){
+  return String(str||'bao-cao').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/g,'d').replace(/Đ/g,'D').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+}
+
+async function downloadImage(){
+  const el = document.getElementById('reportCard');
+  const canvas = await html2canvas(el, {scale:2, backgroundColor:'#ffffff'});
+  const link = document.createElement('a');
+  link.download = `bao-cao-${safeFileName(pointerData.studentName)}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+async function downloadPDF(){
+  const el = document.getElementById('reportCard');
+  const canvas = await html2canvas(el, {scale:2, backgroundColor:'#ffffff'});
+  const { jsPDF } = window.jspdf;
+  const imgData = canvas.toDataURL('image/png');
+  const pdf = new jsPDF({unit:'px', format:[canvas.width, canvas.height]});
+  pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+  pdf.save(`bao-cao-${safeFileName(pointerData.studentName)}.pdf`);
+}
+
+init();
+</script>
+</body>
+</html>
