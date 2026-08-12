@@ -301,17 +301,34 @@
   .duck-check input{accent-color:var(--primary);cursor:pointer;}
   .duck-check.called{opacity:.5;}
   .duck-check .called-tag{font-size:11px;color:var(--green);font-weight:700;}
-  .duck-lane{position:relative;height:48px;display:flex;align-items:center;border-bottom:1px dashed var(--border);}
+  #duckArena{position:relative;}
+  .duck-lane{position:relative;height:48px;display:flex;align-items:center;border-bottom:1px dashed rgba(255,255,255,.5);}
   .duck-lane:last-child{border-bottom:none;}
   .duck-lane-name{width:120px;flex-shrink:0;font-size:13px;font-weight:800;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px;}
-  .duck-lane-path{position:relative;flex:1;height:100%;background:linear-gradient(180deg,#EAF3FF,#F6FBFF);border-radius:10px;overflow:hidden;}
-  .duck-finish{position:absolute;right:14px;top:0;bottom:0;width:2px;background:repeating-linear-gradient(180deg,var(--text) 0 6px, transparent 6px 12px);opacity:.5;}
-  .duck-runner{position:absolute;top:50%;left:4px;transform:translateY(-50%);font-size:26px;transition-property:left;transition-timing-function:linear;will-change:left;line-height:1;}
+  .duck-lane-path{position:relative;flex:1;height:100%;overflow:hidden;background:linear-gradient(180deg,#BEE3FF 0%,#8FCBF5 100%);}
+  .duck-lane-path::before{content:'';position:absolute;inset:0;z-index:1;opacity:.55;
+    background-image:repeating-linear-gradient(100deg, rgba(255,255,255,.35) 0 10px, transparent 10px 42px);
+    animation:duckWaterFlow 2.2s linear infinite;}
+  @keyframes duckWaterFlow{from{background-position-x:0;}to{background-position-x:-84px;}}
+  .duck-finish{position:absolute;right:14px;top:0;bottom:0;width:2px;z-index:2;background:repeating-linear-gradient(180deg,var(--text) 0 6px, transparent 6px 12px);opacity:.6;}
+  .duck-runner{position:absolute;top:50%;left:4px;z-index:3;transform:translateY(-50%);font-size:26px;transition-property:left;transition-timing-function:linear;will-change:left;line-height:1;}
   .duck-runner.racing{animation:duckBob .3s ease-in-out infinite;}
   .duck-runner.duck-winner{animation:duckWinnerPop .6s ease;}
-  @keyframes duckBob{0%,100%{transform:translateY(-50%) rotate(0deg);}50%{transform:translateY(-58%) rotate(-8deg);}}
+  @keyframes duckBob{0%,100%{transform:translateY(-50%) rotate(0deg);}50%{transform:translateY(-62%) rotate(-10deg);}}
   @keyframes duckWinnerPop{0%{transform:translateY(-50%) scale(1);}50%{transform:translateY(-50%) scale(1.5);}100%{transform:translateY(-50%) scale(1.2);}}
   #duckResult{text-align:center;margin-top:14px;font-size:19px;font-weight:800;}
+  #duckCountdown{position:absolute;inset:0;z-index:10;display:none;align-items:center;justify-content:center;font-size:96px;font-weight:800;color:#fff;text-shadow:0 4px 14px rgba(0,0,0,.35);background:rgba(108,147,199,.35);border-radius:16px;}
+  #duckCountdown.show{display:flex;}
+  #duckCountdown span{animation:duckCountdownPop .8s ease;}
+  @keyframes duckCountdownPop{0%{transform:scale(0.4);opacity:0;}30%{transform:scale(1.15);opacity:1;}100%{transform:scale(1);opacity:1;}}
+  #duckArena:fullscreen{background:linear-gradient(180deg,#BEE3FF,#8FCBF5);display:flex;flex-direction:column;justify-content:center;padding:5vh 6vw;}
+  #duckArena:-webkit-full-screen{background:linear-gradient(180deg,#BEE3FF,#8FCBF5);display:flex;flex-direction:column;justify-content:center;padding:5vh 6vw;}
+  #duckArena:fullscreen #duckTrack, #duckArena:-webkit-full-screen #duckTrack{max-width:1000px;width:100%;margin:0 auto;}
+  #duckArena:fullscreen .duck-lane, #duckArena:-webkit-full-screen .duck-lane{height:64px;}
+  #duckArena:fullscreen .duck-runner, #duckArena:-webkit-full-screen .duck-runner{font-size:42px;}
+  #duckArena:fullscreen .duck-lane-name, #duckArena:-webkit-full-screen .duck-lane-name{font-size:17px;width:170px;color:#2c3a55;}
+  #duckArena:fullscreen #duckCountdown, #duckArena:-webkit-full-screen #duckCountdown{font-size:160px;}
+  #duckArena:fullscreen #duckResult, #duckArena:-webkit-full-screen #duckResult{font-size:28px;margin-top:24px;}
 
   @media print{
     body *{visibility:hidden;}
@@ -658,8 +675,15 @@
           </div>
         </div>
         <div class="card" id="duckTrackCard" style="display:none;">
-          <div id="duckTrack"></div>
-          <div id="duckResult" style="display:none;"></div>
+          <div class="row between" style="align-items:center;margin-bottom:10px;">
+            <div class="muted" style="font-size:12px;">🏊 Cuộc đua đang diễn ra...</div>
+            <button class="btn secondary small" onclick="toggleDuckFullscreen()">⛶ Toàn màn hình</button>
+          </div>
+          <div id="duckArena">
+            <div id="duckTrack"></div>
+            <div id="duckCountdown"><span></span></div>
+            <div id="duckResult" style="display:none;"></div>
+          </div>
         </div>
       </section>
 
@@ -2957,18 +2981,50 @@ function startDuckRace(){
   resultBox.style.display = 'none';
   resultBox.innerHTML = '';
 
+  // vẽ sẵn các lane ở vạch xuất phát trong lúc đếm ngược, để mọi người thấy trước ai đang đua
   const track = document.getElementById('duckTrack');
   track.innerHTML = sorted.map((s,i)=>`
     <div class="duck-lane">
       <div class="duck-lane-name">${escapeHtml(givenName(s.name))}</div>
       <div class="duck-lane-path">
         <div class="duck-finish"></div>
-        <div class="duck-runner racing" id="duckRunner_${s.id}" style="transition-duration:${durations[i]}s;">🦆</div>
+        <div class="duck-runner" id="duckRunner_${s.id}" style="transition-duration:${durations[i]}s;">🦆</div>
       </div>
     </div>
   `).join('');
 
-  // chờ DOM vẽ xong lane ở vị trí xuất phát (left:4px) rồi mới đặt đích, để transition CSS chạy đúng
+  runDuckCountdown(()=> launchDucks(sorted, durations, winner));
+}
+
+// đếm ngược 3-2-1 rồi "Bơi! 🦆" trước khi vịt bắt đầu chạy, cho không khí hồi hộp giống trang tham khảo
+function runDuckCountdown(onDone){
+  const cd = document.getElementById('duckCountdown');
+  const label = cd.querySelector('span');
+  const steps = ['3', '2', '1', 'Bơi! 🦆'];
+  let i = 0;
+  cd.classList.add('show');
+  function showNext(){
+    label.textContent = steps[i];
+    label.style.animation = 'none';
+    void label.offsetWidth; // ép trình duyệt tính lại để animation chạy lại từ đầu mỗi bước
+    label.style.animation = 'duckCountdownPop .8s ease';
+    i++;
+    if(i < steps.length){
+      setTimeout(showNext, 700);
+    } else {
+      setTimeout(()=>{ cd.classList.remove('show'); onDone(); }, 550);
+    }
+  }
+  showNext();
+}
+
+// cho vịt chạy thật sự sau khi đếm ngược xong
+function launchDucks(sorted, durations, winner){
+  sorted.forEach(s=>{
+    const el = document.getElementById('duckRunner_'+s.id);
+    if(el) el.classList.add('racing');
+  });
+  // chờ DOM cập nhật xong lớp "racing" ở vị trí xuất phát rồi mới đặt đích, để transition CSS chạy đúng
   requestAnimationFrame(()=> requestAnimationFrame(()=>{
     sorted.forEach(s=>{
       const el = document.getElementById('duckRunner_'+s.id);
@@ -2976,6 +3032,8 @@ function startDuckRace(){
     });
   }));
 
+  const startBtn = document.getElementById('duckStartBtn');
+  const resultBox = document.getElementById('duckResult');
   const maxDuration = Math.max(...durations);
   setTimeout(()=>{
     sorted.forEach(s=>{
@@ -2993,6 +3051,20 @@ function startDuckRace(){
     startBtn.textContent = '🏁 Đua tiếp';
     renderDuckTab();
   }, maxDuration * 1000 + 250);
+}
+
+// bật/tắt chế độ toàn màn hình cho đường đua — hữu ích khi trình chiếu cho cả lớp xem
+function toggleDuckFullscreen(){
+  const el = document.getElementById('duckArena');
+  const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  if(!isFs){
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if(req) req.call(el).catch(()=> toast('Trình duyệt không hỗ trợ toàn màn hình'));
+    else toast('Trình duyệt không hỗ trợ toàn màn hình');
+  } else {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if(exit) exit.call(document);
+  }
 }
 
 // ================= LINK CHIA SẺ BÁO CÁO CHO PHỤ HUYNH (xem-bao-cao.html) =================
