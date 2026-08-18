@@ -396,6 +396,7 @@
               <button class="btn secondary small" onclick="exportStudents()">Xuất CSV</button>
               <button class="btn secondary small" onclick="openBulkModal()">+ Thêm hàng loạt</button>
               <button class="btn small" onclick="openStudentModal()">+ Thêm học sinh</button>
+              <button class="btn secondary small" style="color:var(--red);border-color:var(--red);" onclick="deleteAllStudents()">🗑️ Xóa toàn bộ</button>
             </div>
           </div>
         </div>
@@ -1442,6 +1443,18 @@ function saveStudent(){
   if(!name){ toast('Vui lòng nhập họ tên học sinh'); return; }
   const data = {};
   STUDENT_FIELDS.forEach(f=> data[f] = document.getElementById('f_'+f).value.trim());
+
+  const dup = findDuplicateStudent(data, editingStudentId);
+  if(dup){
+    const ok = confirm(
+      `⚠️ Có thể trùng học sinh!\n\n` +
+      `Em "${dup.name}" (sinh ${formatDate(dup.dob)||'—'}, cha: ${dup.fatherName||'—'}, mẹ: ${dup.motherName||'—'}) đã có sẵn trong lớp, trùng cả họ tên, ngày sinh và tên cha/mẹ với thông tin bạn vừa nhập.\n\n` +
+      `Bấm OK nếu đây thực sự là 2 học sinh khác nhau (trùng hợp) và vẫn muốn lưu.\n` +
+      `Bấm Hủy để kiểm tra lại trước khi lưu.`
+    );
+    if(!ok) return;
+  }
+
   if(pendingPhoto !== undefined) data.photo = pendingPhoto;
   if(pendingAvatarPreset) data.avatarPreset = pendingAvatarPreset;
   if(editingStudentId){
@@ -1462,6 +1475,7 @@ function deleteStudent(){
   if(!editingStudentId) return;
   if(!confirm('Xóa học sinh này? Toàn bộ dữ liệu điểm danh và điểm số liên quan cũng sẽ bị xóa.')) return;
   const id = editingStudentId;
+  const removedStudent = students.find(x=>x.id===id);
   students = students.filter(x=>x.id!==id);
   const affectedDates = [];
   Object.keys(attendance).forEach(date=>{
@@ -1471,14 +1485,96 @@ function deleteStudent(){
   });
   const removedLogIds = pointsLog.filter(l=>l.studentId===id).map(l=>l.id);
   pointsLog = pointsLog.filter(l=>l.studentId!==id);
+  cleanupMonthlyNotesFor([id]);
   saveStudents(); saveAttendanceData(); savePointsLog();
   syncAppDataBundle();
   affectedDates.forEach(syncAttendanceDate);
   removedLogIds.forEach(syncPointsLogDelete);
+  revokeShareTokenFor(removedStudent);
   closeStudentModal();
   renderStudents();
   renderHomeTab();
   toast('Đã xóa học sinh');
+}
+
+// xóa link chia sẻ báo cáo (nếu có) của 1 học sinh đã bị xóa — để phụ huynh không thể mở lại
+// link cũ xem báo cáo của em không còn trong lớp nữa
+function revokeShareTokenFor(s){
+  if(!s || !s.shareToken || !syncEnabled || !fbDb) return;
+  fbDb.collection('shares').doc(s.shareToken).delete().catch(()=>{});
+}
+// dọn sạch ghi chú báo cáo tháng (theo từng tháng) của các học sinh đã bị xóa, tránh rác âm thầm
+// tồn đọng trong localStorage
+function cleanupMonthlyNotesFor(studentIds){
+  let changed = false;
+  Object.keys(monthlyNotes).forEach(key=>{
+    if(studentIds.includes(monthlyNotes[key].studentId)){ delete monthlyNotes[key]; changed = true; }
+  });
+  if(changed) saveMonthlyNotesData();
+}
+
+// xóa TOÀN BỘ học sinh trong lớp cùng lúc — thao tác nguy hiểm, không thể hoàn tác, nên yêu cầu
+// xác nhận 2 lớp (bấm OK + gõ đúng chữ XÓA) để tránh bấm nhầm
+function deleteAllStudents(){
+  if(!students.length){ toast('Lớp hiện chưa có học sinh nào'); return; }
+  const count = students.length;
+  const ok = confirm(
+    `⚠️ XÓA TOÀN BỘ ${count} HỌC SINH?\n\n` +
+    `Thao tác này sẽ xóa VĨNH VIỄN toàn bộ danh sách học sinh cùng dữ liệu điểm danh, điểm số, nhận xét và báo cáo tháng liên quan. KHÔNG THỂ HOÀN TÁC.\n\n` +
+    `Nên vào "⚙️ Cài đặt lớp" bấm "⬇ Sao lưu dữ liệu" trước khi xóa, phòng khi cần khôi phục lại.\n\n` +
+    `Bấm OK để tiếp tục.`
+  );
+  if(!ok) return;
+  const typed = prompt('Để xác nhận, hãy gõ đúng chữ XÓA (in hoa) rồi bấm OK:');
+  if(typed !== 'XÓA'){ toast('Đã hủy — không khớp xác nhận'); return; }
+
+  const removedStudents = students;
+  const removedIds = removedStudents.map(s=>s.id);
+  students = [];
+  const affectedDates = [];
+  Object.keys(attendance).forEach(date=>{
+    let touched = false;
+    ['sang','chieu'].forEach(sess=>{
+      if(attendance[date][sess]){
+        removedIds.forEach(id=>{ if(attendance[date][sess][id]){ delete attendance[date][sess][id]; touched = true; } });
+      }
+    });
+    if(touched) affectedDates.push(date);
+  });
+  const removedLogIds = pointsLog.filter(l=> removedIds.includes(l.studentId)).map(l=>l.id);
+  pointsLog = pointsLog.filter(l=> !removedIds.includes(l.studentId));
+  cleanupMonthlyNotesFor(removedIds);
+
+  saveStudents(); saveAttendanceData(); savePointsLog();
+  syncAppDataBundle();
+  affectedDates.forEach(syncAttendanceDate);
+  removedLogIds.forEach(syncPointsLogDelete);
+  removedStudents.forEach(revokeShareTokenFor);
+
+  renderStudents();
+  renderHomeTab();
+  toast(`Đã xóa toàn bộ ${count} học sinh`);
+}
+
+// kiểm tra trùng học sinh: cùng họ tên + cùng ngày sinh + trùng thêm tên cha HOẶC tên mẹ —
+// để cảnh báo giáo viên trước khi lưu, phòng trường hợp lỡ thêm trùng 1 em 2 lần
+function findDuplicateStudent(data, excludeId){
+  const dob = (data.dob||'').trim();
+  if(!dob) return null; // không có ngày sinh thì không đủ căn cứ để báo trùng (tránh báo nhầm)
+  const nameNorm = (data.name||'').trim().toLowerCase();
+  const father = (data.fatherName||'').trim().toLowerCase();
+  const mother = (data.motherName||'').trim().toLowerCase();
+  if(!father && !mother) return null; // không có tên cha/mẹ nào để đối chiếu thêm
+  return students.find(s=>{
+    if(s.id === excludeId) return false;
+    if((s.name||'').trim().toLowerCase() !== nameNorm) return false;
+    if((s.dob||'').trim() !== dob) return false;
+    const sFather = (s.fatherName||'').trim().toLowerCase();
+    const sMother = (s.motherName||'').trim().toLowerCase();
+    const fatherMatch = father && sFather && father === sFather;
+    const motherMatch = mother && sMother && mother === sMother;
+    return fatherMatch || motherMatch;
+  }) || null;
 }
 
 function openDetail(id){
