@@ -3243,9 +3243,13 @@ function renderFeeTab(){
   let totalCollected = 0, totalExpected = 0;
   feeItems.forEach(item=>{ const s = feeItemSummary(item); totalCollected += s.totalCollected; totalExpected += s.totalExpected; });
   const totalRemaining = Math.max(0, totalExpected - totalCollected);
+  // tổng tiền thối tiền mặt CHƯA trả lại cho phụ huynh, gộp toàn bộ các khoản thu — hiện ngay ở
+  // đầu tab để không bị bỏ sót, không cần mở từng khoản/từng em mới thấy
+  const pendingChangeAll = feePayments.filter(p=> p.method==='cash' && p.change>0 && p.changeStatus==='pending').reduce((sum,p)=> sum+p.change, 0);
   bar.innerHTML = feeItems.length ? `
     <span class="badge present">💰 Đã thu: ${formatMoney(totalCollected)}</span>
     <span class="badge absent">⏳ Còn thiếu: ${formatMoney(totalRemaining)}</span>
+    ${pendingChangeAll > 0 ? `<span class="badge absent">⚠️ Chưa thối tiền: ${formatMoney(pendingChangeAll)}</span>` : ''}
   ` : '';
 
   const list = document.getElementById('feeItemsList');
@@ -3337,6 +3341,9 @@ function renderFeeDetailTable(){
     const badgeClass = st.status==='paid' ? 'present' : (st.status==='partial' ? 'excused' : 'absent');
     const badgeLabel = st.status==='paid' ? 'Đã đủ' : (st.status==='partial' ? 'Còn thiếu' : 'Chưa đóng');
     const history = paymentsFor(item.id, s.id);
+    // tổng tiền thối CHƯA trả lại phụ huynh của em này (cho khoản thu đang xem) — hiện luôn ra
+    // ngoài hàng chính, không bắt phải bấm mở rộng mới thấy, vì đây là việc cần ưu tiên xử lý ngay
+    const pendingChangeTotal = history.filter(p=> p.method==='cash' && p.change>0 && p.changeStatus==='pending').reduce((sum,p)=> sum+p.change, 0);
     const historyRows = history.length ? history.map(p=>{
       const methodLabel = p.method === 'cash' ? '💵 Tiền mặt' : '🏦 Chuyển khoản';
       const pendingChange = p.method === 'cash' && p.change > 0 && p.changeStatus === 'pending';
@@ -3358,7 +3365,10 @@ function renderFeeDetailTable(){
         <td>${escapeHtml(s.name)}</td>
         <td>${formatMoney(st.paid)}</td>
         <td>${formatMoney(st.remaining)}</td>
-        <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+        <td>
+          <span class="badge ${badgeClass}">${badgeLabel}</span>
+          ${pendingChangeTotal > 0 ? `<div style="margin-top:4px;"><span class="badge absent">⚠️ Nợ thối ${formatMoney(pendingChangeTotal)}</span></div>` : ''}
+        </td>
         <td>
           <div class="row" style="gap:4px;flex-wrap:wrap;">
             <button class="btn secondary small" onclick="openFeePaymentModal('${item.id}','${s.id}')">+ Ghi</button>
