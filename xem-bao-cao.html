@@ -37,6 +37,12 @@
   .pct-low{color:var(--red);font-weight:700;}
   .pct-ok{color:var(--green);font-weight:700;}
   h2{margin:8px 0 2px;}
+  .badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:800;}
+  .badge.paid{background:#E4F5EE;color:var(--green);}
+  .badge.partial{background:#FBF1DE;color:var(--amber);}
+  .badge.unpaid{background:#FBE7E9;color:var(--red);}
+  .fee-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px dashed var(--border);}
+  .fee-row:last-child{border-bottom:none;}
   #loading{text-align:center;padding:60px 16px;color:var(--muted);}
 </style>
 </head>
@@ -45,15 +51,16 @@
   <div class="top-note">📋 Phiếu báo cáo học tập — dành cho phụ huynh</div>
   <div id="loading">Đang tải báo cáo...</div>
   <div id="content" style="display:none;">
-    <div class="card">
+    <div class="card" id="monthSelectCard">
       <label class="muted" style="font-weight:700;font-size:13px;">Chọn tháng xem báo cáo</label>
       <select id="monthSelect" style="margin-top:6px;" onchange="renderSelectedMonth()"></select>
     </div>
     <div class="card" id="reportCard"></div>
-    <div class="row" style="justify-content:center;">
+    <div class="row" id="reportActionsRow" style="justify-content:center;">
       <button class="btn" onclick="downloadPDF()">📄 Tải PDF</button>
       <button class="btn secondary" onclick="downloadImage()">🖼️ Tải ảnh</button>
     </div>
+    <div class="card" id="feeCard" style="display:none;"></div>
   </div>
   <div id="errorBox" class="empty" style="display:none;"></div>
 </div>
@@ -80,6 +87,7 @@ function formatDate(iso){
   if(!y||!m||!d) return iso;
   return `${d}/${m}/${y}`;
 }
+function formatMoney(n){ n = Number(n)||0; return n.toLocaleString('vi-VN') + 'đ'; }
 
 let pointerData = null;
 let monthsData = {}; // month -> report data
@@ -102,14 +110,25 @@ async function init(){
     if(!ptrSnap.exists){ showError('Link không hợp lệ hoặc đã bị gỡ. Vui lòng liên hệ giáo viên để lấy link mới.'); return; }
     pointerData = ptrSnap.data();
     const monthsSnap = await db.collection('shares').doc(token).collection('months').get();
-    if(monthsSnap.empty){ showError('Chưa có báo cáo nào được chia sẻ cho học sinh này.'); return; }
     monthsSnap.forEach(doc=>{ monthsData[doc.id] = doc.data(); });
     sortedMonths = Object.keys(monthsData).sort().reverse(); // mới nhất trước
-    const sel = document.getElementById('monthSelect');
-    sel.innerHTML = sortedMonths.map(m=>`<option value="${m}">${escapeHtml(monthsData[m].monthLabel || m)}</option>`).join('');
+    const hasFeeSummary = Array.isArray(pointerData.feeSummary) && pointerData.feeSummary.length > 0;
+    if(!sortedMonths.length && !hasFeeSummary){ showError('Chưa có báo cáo nào được chia sẻ cho học sinh này.'); return; }
+
+    if(sortedMonths.length){
+      const sel = document.getElementById('monthSelect');
+      sel.innerHTML = sortedMonths.map(m=>`<option value="${m}">${escapeHtml(monthsData[m].monthLabel || m)}</option>`).join('');
+      renderSelectedMonth();
+    } else {
+      // học sinh này chưa có báo cáo học tập nào được chia sẻ (có thể cô chỉ mới thiết lập thu phí) —
+      // ẩn hẳn phần chọn tháng/báo cáo học tập, chỉ hiện phần tình trạng đóng phí bên dưới
+      document.getElementById('monthSelectCard').style.display = 'none';
+      document.getElementById('reportCard').style.display = 'none';
+      document.getElementById('reportActionsRow').style.display = 'none';
+    }
+    renderFeeSummary();
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = '';
-    renderSelectedMonth();
   }catch(e){
     console.warn(e);
     showError('Không tải được báo cáo, vui lòng kiểm tra kết nối mạng và thử lại.');
@@ -159,6 +178,27 @@ function renderSelectedMonth(){
     </div>
     ${note ? `<div class="detail-section"><h4>💌 Lời nhắn của giáo viên</h4><p style="white-space:pre-wrap;">${escapeHtml(note)}</p></div>` : ''}
   `;
+}
+
+function renderFeeSummary(){
+  const items = (pointerData && Array.isArray(pointerData.feeSummary)) ? pointerData.feeSummary : [];
+  const card = document.getElementById('feeCard');
+  if(!items.length){ card.style.display = 'none'; return; }
+  const statusLabel = st => st==='paid' ? '✅ Đã đủ' : (st==='partial' ? '⏳ Còn thiếu' : '❌ Chưa đóng');
+  card.innerHTML = `
+    <h2 style="text-align:center;">💰 Tình trạng đóng phí</h2>
+    ${items.map(it=>`
+      <div class="fee-row">
+        <div>
+          <div style="font-weight:700;">${escapeHtml(it.name)}</div>
+          <div class="muted">Phải đóng: ${formatMoney(it.amount)}${it.dueDate ? ' · Hạn: '+formatDate(it.dueDate) : ''}</div>
+          <div class="muted">Đã đóng: ${formatMoney(it.paid)}${it.remaining>0 ? ' · Còn thiếu: '+formatMoney(it.remaining) : ''}</div>
+        </div>
+        <span class="badge ${it.status}">${statusLabel(it.status)}</span>
+      </div>
+    `).join('')}
+  `;
+  card.style.display = '';
 }
 
 function safeFileName(str){

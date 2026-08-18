@@ -62,6 +62,7 @@
   .nav-item[data-tab="schedule"] .ic{background:#FBF1DE;}
   .nav-item[data-tab="stats"] .ic{background:#F2EBFB;}
   .nav-item[data-tab="report"] .ic{background:#FDEAEF;}
+  .nav-item[data-tab="fees"] .ic{background:#FFF3D6;}
   .nav-item[data-tab="criteria"] .ic{background:#FBE7E9;}
   .nav-item[onclick] .ic{background:#ECE6F5;}
   .sidebar-footer{padding:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;}
@@ -316,6 +317,7 @@
       <button class="nav-item" data-tab="schedule"><span class="ic">🗓️</span>Lịch học</button>
       <button class="nav-item" data-tab="stats"><span class="ic">📈</span>Thống kê</button>
       <button class="nav-item" data-tab="report"><span class="ic">📮</span>Báo cáo tháng</button>
+      <button class="nav-item" data-tab="fees"><span class="ic">💰</span>Thu phí</button>
       <div class="nav-section-label">Cấu hình</div>
       <button class="nav-item" data-tab="criteria"><span class="ic">🏅</span>Tiêu chí</button>
       <button class="nav-item" onclick="openClassModal()"><span class="ic">⚙️</span>Cài đặt lớp</button>
@@ -621,6 +623,20 @@
         </div>
       </section>
 
+      <!-- TAB: THU PHÍ -->
+      <section id="tab-fees" style="display:none;">
+        <div class="card">
+          <div class="row between" style="align-items:center;">
+            <h3 style="margin:0;">💰 Các khoản thu</h3>
+            <button class="btn small" onclick="openFeeItemModal()">+ Tạo khoản thu mới</button>
+          </div>
+          <div class="muted" style="margin-top:4px;font-size:12px;">Tạo học phí hàng tháng hoặc các khoản phát sinh (dã ngoại, đồng phục, sách vở...), ghi nhận từng lần đóng tiền của học sinh, xuất phiếu thu gửi phụ huynh.</div>
+          <div id="feeOverviewBar" class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap;"></div>
+        </div>
+        <div id="feeItemsList"></div>
+        <div id="feeItemsEmpty" class="empty" style="display:none;">Chưa có khoản thu nào. Bấm "+ Tạo khoản thu mới" để bắt đầu.</div>
+      </section>
+
     </main>
   </div>
 </div>
@@ -921,6 +937,87 @@
   </div>
 </div>
 
+<!-- FEE ITEM MODAL (tạo/sửa khoản thu) -->
+<div class="modal-overlay" id="feeItemModalOverlay">
+  <div class="modal narrow">
+    <h3 id="feeItemModalTitle">Tạo khoản thu mới</h3>
+    <div class="form-grid">
+      <label class="full">Tên khoản thu
+        <input id="fi_name" placeholder="VD: Học phí tháng 9, Dã ngoại Đà Lạt, Đồng phục...">
+      </label>
+      <label>Số tiền / học sinh
+        <input id="fi_amount" type="number" min="0" step="1000" placeholder="VD: 500000">
+      </label>
+      <label>Hạn đóng (tùy chọn)
+        <input id="fi_dueDate" type="date">
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeFeeItemModal()">Hủy</button>
+      <button class="btn" onclick="saveFeeItem()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- FEE DETAIL MODAL (bảng theo dõi từng học sinh cho 1 khoản thu) -->
+<div class="modal-overlay" id="feeDetailModalOverlay">
+  <div class="modal wide">
+    <div class="row between" style="align-items:flex-start;">
+      <div>
+        <h3 id="feeDetailTitle" style="margin:0;"></h3>
+        <div class="muted" id="feeDetailSub" style="margin-top:2px;font-size:13px;"></div>
+      </div>
+      <div class="row" style="flex-wrap:wrap;">
+        <button class="btn secondary small" onclick="editCurrentFeeItem()">✏️ Sửa</button>
+        <button class="btn secondary small" style="color:var(--red);border-color:var(--red);" onclick="deleteFeeItemConfirm()">🗑️ Xóa khoản thu</button>
+        <button class="btn secondary small" onclick="closeFeeDetailModal()">Đóng</button>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow-x:auto;margin-top:14px;max-height:60vh;overflow-y:auto;">
+      <table>
+        <thead><tr><th>Học sinh</th><th>Đã đóng</th><th>Còn thiếu</th><th>Trạng thái</th><th></th></tr></thead>
+        <tbody id="feeDetailTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- FEE PAYMENT MODAL (ghi nhận 1 lần đóng tiền) -->
+<div class="modal-overlay" id="feePaymentModalOverlay">
+  <div class="modal narrow">
+    <h3>Ghi nhận đóng tiền</h3>
+    <div class="muted" id="feePaymentStudentLabel" style="margin-top:-6px;margin-bottom:10px;"></div>
+    <div class="form-grid">
+      <label>Số tiền
+        <input id="fp_amount" type="number" min="0" step="1000">
+      </label>
+      <label>Ngày đóng
+        <input id="fp_date" type="date">
+      </label>
+      <label class="full">Ghi chú (tùy chọn)
+        <input id="fp_note" placeholder="VD: đóng tiền mặt, chuyển khoản...">
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" onclick="closeFeePaymentModal()">Hủy</button>
+      <button class="btn" onclick="saveFeePayment()">Lưu</button>
+    </div>
+  </div>
+</div>
+
+<!-- FEE RECEIPT MODAL (phiếu thu xuất ảnh/PDF gửi phụ huynh) -->
+<div class="modal-overlay" id="feeReceiptModalOverlay">
+  <div class="modal">
+    <div class="report-card" id="feeReceiptCard"></div>
+    <div class="row report-actions" style="margin-top:16px;">
+      <button class="btn" onclick="downloadReceiptPDF()">📄 Tải file PDF</button>
+      <button class="btn secondary" onclick="downloadReceiptImage()">🖼️ Tải ảnh</button>
+      <button class="btn secondary" onclick="copyReceiptText()">📋 Sao chép nội dung</button>
+      <button class="btn secondary" onclick="closeFeeReceiptModal()">Đóng</button>
+    </div>
+  </div>
+</div>
+
 <!-- DETAIL MODAL -->
 <div class="modal-overlay" id="detailModalOverlay">
   <div class="modal wide" id="detailModalContent"></div>
@@ -939,6 +1036,8 @@ const LS_POINTSLOG = 'qlLop1_pointsLog';
 const LS_SCHEDULE = 'qlLop1_schedule';
 const LS_COMMENTS = 'qlLop1_commentsLog';
 const LS_MONTHLY_NOTES = 'qlLop1_monthlyNotes';
+const LS_FEE_ITEMS = 'qlLop1_feeItems';
+const LS_FEE_PAYMENTS = 'qlLop1_feePayments';
 
 let students = JSON.parse(localStorage.getItem(LS_STUDENTS) || '[]');
 let attendance = JSON.parse(localStorage.getItem(LS_ATTENDANCE) || '{}');
@@ -962,6 +1061,10 @@ let commentsLog = JSON.parse(localStorage.getItem(LS_COMMENTS) || '[]'); // [{id
 // ghi chú báo cáo tháng, tách riêng theo từng (học sinh, tháng) để xem lại/so sánh tiến bộ qua các tháng
 // key dạng "<studentId>_<YYYY-MM>" -> {id, studentId, month, note, strengthsNote, improvementsNote, updatedAt}
 let monthlyNotes = JSON.parse(localStorage.getItem(LS_MONTHLY_NOTES) || '{}');
+// khoản thu (học phí tháng / khoản phát sinh): {id, name, amount, dueDate, type:'monthly'|'other', month, createdAt}
+let feeItems = JSON.parse(localStorage.getItem(LS_FEE_ITEMS) || '[]');
+// từng lần đóng tiền: {id, feeItemId, studentId, amount, date, note, createdAt}
+let feePayments = JSON.parse(localStorage.getItem(LS_FEE_PAYMENTS) || '[]');
 
 if(criteria === null){
   criteria = [
@@ -1006,6 +1109,9 @@ function savePointsLog(){ localStorage.setItem(LS_POINTSLOG, JSON.stringify(poin
 function saveSchedule(){ localStorage.setItem(LS_SCHEDULE, JSON.stringify(schedule)); }
 function saveCommentsLog(){ localStorage.setItem(LS_COMMENTS, JSON.stringify(commentsLog)); }
 function saveMonthlyNotesData(){ localStorage.setItem(LS_MONTHLY_NOTES, JSON.stringify(monthlyNotes)); }
+function saveFeeItems(){ localStorage.setItem(LS_FEE_ITEMS, JSON.stringify(feeItems)); }
+function saveFeePayments(){ localStorage.setItem(LS_FEE_PAYMENTS, JSON.stringify(feePayments)); }
+function formatMoney(n){ n = Number(n)||0; return n.toLocaleString('vi-VN') + 'đ'; }
 
 function uid(prefix){ return (prefix||'id') + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
 
@@ -1180,7 +1286,7 @@ function saveClassInfo(){
 }
 
 // ================= NAVIGATION =================
-const TAB_TITLES = {home:'Trang chủ', students:'Học sinh', session:'Buổi học', schedule:'Lịch học', criteria:'Tiêu chí', stats:'Thống kê', report:'Báo cáo tháng'};
+const TAB_TITLES = {home:'Trang chủ', students:'Học sinh', session:'Buổi học', schedule:'Lịch học', criteria:'Tiêu chí', stats:'Thống kê', report:'Báo cáo tháng', fees:'Thu phí'};
 function goTab(tab){
   document.querySelectorAll('.nav-item[data-tab]').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   Object.keys(TAB_TITLES).forEach(t=>{
@@ -1195,6 +1301,7 @@ function goTab(tab){
   if(tab==='criteria') renderCriteriaTab();
   if(tab==='stats') renderStatsTab();
   if(tab==='report') initReportTab();
+  if(tab==='fees') renderFeeTab();
 }
 document.querySelectorAll('.nav-item[data-tab]').forEach(btn=>{
   btn.addEventListener('click', ()=> goTab(btn.dataset.tab));
@@ -1486,6 +1593,7 @@ function deleteStudent(){
   const removedLogIds = pointsLog.filter(l=>l.studentId===id).map(l=>l.id);
   pointsLog = pointsLog.filter(l=>l.studentId!==id);
   cleanupMonthlyNotesFor([id]);
+  cleanupFeePaymentsFor([id]);
   saveStudents(); saveAttendanceData(); savePointsLog();
   syncAppDataBundle();
   affectedDates.forEach(syncAttendanceDate);
@@ -1544,6 +1652,7 @@ function deleteAllStudents(){
   const removedLogIds = pointsLog.filter(l=> removedIds.includes(l.studentId)).map(l=>l.id);
   pointsLog = pointsLog.filter(l=> !removedIds.includes(l.studentId));
   cleanupMonthlyNotesFor(removedIds);
+  cleanupFeePaymentsFor(removedIds);
 
   saveStudents(); saveAttendanceData(); savePointsLog();
   syncAppDataBundle();
@@ -3016,9 +3125,363 @@ async function shareReportLink(studentId){
   }catch(e){ toast('Không tạo được link, thử lại (kiểm tra kết nối mạng)'); console.warn(e); }
 }
 
+// ================= THU PHÍ (học phí hàng tháng + các khoản thu phát sinh) =================
+function createFeeItem(name, amount, dueDate, type){
+  const item = { id: uid('fee'), name: (name||'').trim(), amount: Number(amount)||0, dueDate: dueDate || '', type: type || 'other', createdAt: Date.now() };
+  feeItems.push(item);
+  saveFeeItems();
+  syncFeeItemPut(item);
+  return item;
+}
+function updateFeeItem(feeItemId, name, amount, dueDate){
+  const item = feeItems.find(f=>f.id===feeItemId);
+  if(!item) return;
+  item.name = (name||'').trim();
+  item.amount = Number(amount)||0;
+  item.dueDate = dueDate || '';
+  saveFeeItems();
+  syncFeeItemPut(item);
+  republishFeeSummaryForAll(); // đổi số tiền/tên ảnh hưởng tới tổng hợp của mọi em đang có link
+}
+function deleteFeeItem(feeItemId){
+  feeItems = feeItems.filter(f=>f.id!==feeItemId);
+  const removedPaymentIds = feePayments.filter(p=>p.feeItemId===feeItemId).map(p=>p.id);
+  feePayments = feePayments.filter(p=>p.feeItemId!==feeItemId);
+  saveFeeItems(); saveFeePayments();
+  syncFeeItemDelete(feeItemId);
+  removedPaymentIds.forEach(syncFeePaymentDelete);
+  republishFeeSummaryForAll();
+}
+function recordFeePayment(feeItemId, studentId, amount, date, note){
+  const entry = { id: uid('pay'), feeItemId, studentId, amount: Number(amount)||0, date: date || todayDateStr(), note: (note||'').trim(), createdAt: Date.now() };
+  feePayments.push(entry);
+  saveFeePayments();
+  syncFeePaymentPut(entry);
+  republishFeeSummaryFor(studentId);
+  return entry;
+}
+function deleteFeePayment(paymentId){
+  const p = feePayments.find(x=>x.id===paymentId);
+  feePayments = feePayments.filter(x=>x.id!==paymentId);
+  saveFeePayments();
+  syncFeePaymentDelete(paymentId);
+  if(p) republishFeeSummaryFor(p.studentId);
+}
+// dọn payments của các khoản thu/học sinh đã bị xóa khỏi lớp — gọi từ deleteStudent/deleteAllStudents
+function cleanupFeePaymentsFor(studentIds){
+  const removedIds = feePayments.filter(p=> studentIds.includes(p.studentId)).map(p=>p.id);
+  if(!removedIds.length) return;
+  feePayments = feePayments.filter(p=> !studentIds.includes(p.studentId));
+  saveFeePayments();
+  removedIds.forEach(syncFeePaymentDelete);
+}
+function paymentsFor(feeItemId, studentId){
+  return feePayments.filter(p=>p.feeItemId===feeItemId && p.studentId===studentId).sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+}
+function totalPaidFor(feeItemId, studentId){
+  return paymentsFor(feeItemId, studentId).reduce((sum,p)=> sum + (Number(p.amount)||0), 0);
+}
+// đã đóng / còn thiếu / trạng thái của 1 em cho 1 khoản thu cụ thể
+function feeStatusFor(feeItem, studentId){
+  const paid = totalPaidFor(feeItem.id, studentId);
+  const remaining = Math.max(0, (feeItem.amount||0) - paid);
+  const status = paid <= 0 ? 'unpaid' : (remaining <= 0 ? 'paid' : 'partial');
+  return { paid, remaining, status };
+}
+// tổng hợp 1 khoản thu cho CẢ LỚP: bao nhiêu em đã đóng đủ/còn thiếu/chưa đóng, tổng đã thu được
+function feeItemSummary(feeItem){
+  let paidCount=0, partialCount=0, unpaidCount=0, totalCollected=0;
+  students.forEach(s=>{
+    const st = feeStatusFor(feeItem, s.id);
+    totalCollected += st.paid;
+    if(st.status==='paid') paidCount++; else if(st.status==='partial') partialCount++; else unpaidCount++;
+  });
+  return { paidCount, partialCount, unpaidCount, totalCollected, totalExpected: (feeItem.amount||0) * students.length };
+}
+// toàn bộ tình trạng đóng phí của 1 em, dùng cho phiếu thu + link xem online của phụ huynh
+function feeSummaryForStudent(studentId){
+  return feeItems.map(item=>{
+    const st = feeStatusFor(item, studentId);
+    return { name: item.name, amount: item.amount, dueDate: item.dueDate, paid: st.paid, remaining: st.remaining, status: st.status };
+  });
+}
+// đăng lại tình trạng đóng phí của 1 em lên đúng doc shares/{token} (nếu em đó đã có link chia sẻ) —
+// gộp vào cùng doc với thông tin định danh (không tách subcollection riêng vì phí không theo tháng cố định)
+async function republishFeeSummaryFor(studentId){
+  const s = students.find(x=>x.id===studentId);
+  if(!s || !s.shareToken || !syncEnabled || !fbUser) return;
+  const feeSummary = stripUndefinedDeep(feeSummaryForStudent(studentId));
+  try{
+    await fbDb.collection('shares').doc(s.shareToken).set({ feeSummary, feeUpdatedAt: Date.now() }, {merge:true});
+  }catch(e){ console.warn('publish tình trạng đóng phí lỗi', e); }
+}
+function republishFeeSummaryForAll(){
+  students.filter(s=> s.shareToken).forEach(s=> republishFeeSummaryFor(s.id));
+}
+
+// ---- giao diện tab Thu phí ----
+function renderFeeTab(){
+  const bar = document.getElementById('feeOverviewBar');
+  let totalCollected = 0, totalExpected = 0;
+  feeItems.forEach(item=>{ const s = feeItemSummary(item); totalCollected += s.totalCollected; totalExpected += s.totalExpected; });
+  const totalRemaining = Math.max(0, totalExpected - totalCollected);
+  bar.innerHTML = feeItems.length ? `
+    <span class="badge present">💰 Đã thu: ${formatMoney(totalCollected)}</span>
+    <span class="badge absent">⏳ Còn thiếu: ${formatMoney(totalRemaining)}</span>
+  ` : '';
+
+  const list = document.getElementById('feeItemsList');
+  const empty = document.getElementById('feeItemsEmpty');
+  if(!feeItems.length){
+    list.innerHTML = '';
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  const sorted = [...feeItems].sort((a,b)=> (b.createdAt||0) - (a.createdAt||0));
+  list.innerHTML = sorted.map(item=>{
+    const s = feeItemSummary(item);
+    const fullyOk = students.length>0 && s.unpaidCount===0 && s.partialCount===0;
+    return `
+      <div class="card" style="cursor:pointer;" onclick="openFeeDetail('${item.id}')">
+        <div class="row between" style="align-items:center;">
+          <div>
+            <div style="font-weight:800;font-size:15px;">${escapeHtml(item.name)}</div>
+            <div class="muted" style="font-size:12px;margin-top:2px;">${formatMoney(item.amount)}/em${item.dueDate ? ' · Hạn: '+formatDate(item.dueDate) : ''}</div>
+          </div>
+          <span class="badge ${fullyOk ? 'present' : 'excused'}">${s.paidCount}/${students.length} đã đóng đủ</span>
+        </div>
+        <div class="muted" style="margin-top:10px;font-size:12px;">Đã thu: <b style="color:var(--text);">${formatMoney(s.totalCollected)}</b> / ${formatMoney(s.totalExpected)}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+let editingFeeItemId = null;
+function openFeeItemModal(id){
+  editingFeeItemId = id || null;
+  document.getElementById('feeItemModalTitle').textContent = id ? 'Sửa khoản thu' : 'Tạo khoản thu mới';
+  const item = id ? feeItems.find(f=>f.id===id) : null;
+  document.getElementById('fi_name').value = item ? item.name : '';
+  document.getElementById('fi_amount').value = item ? item.amount : '';
+  document.getElementById('fi_dueDate').value = item ? (item.dueDate||'') : '';
+  document.getElementById('feeItemModalOverlay').classList.add('open');
+}
+function closeFeeItemModal(){ document.getElementById('feeItemModalOverlay').classList.remove('open'); }
+function saveFeeItem(){
+  const name = document.getElementById('fi_name').value.trim();
+  const amount = document.getElementById('fi_amount').value;
+  const dueDate = document.getElementById('fi_dueDate').value;
+  if(!name){ toast('Vui lòng nhập tên khoản thu'); return; }
+  if(!amount || Number(amount) <= 0){ toast('Vui lòng nhập số tiền hợp lệ'); return; }
+  if(editingFeeItemId) updateFeeItem(editingFeeItemId, name, amount, dueDate);
+  else createFeeItem(name, amount, dueDate);
+  closeFeeItemModal();
+  renderFeeTab();
+  toast('Đã lưu khoản thu');
+}
+
+let currentFeeDetailId = null;
+function openFeeDetail(feeItemId){
+  currentFeeDetailId = feeItemId;
+  renderFeeDetailTable();
+  document.getElementById('feeDetailModalOverlay').classList.add('open');
+}
+function closeFeeDetailModal(){
+  document.getElementById('feeDetailModalOverlay').classList.remove('open');
+  currentFeeDetailId = null;
+}
+function editCurrentFeeItem(){
+  if(!currentFeeDetailId) return;
+  const id = currentFeeDetailId;
+  closeFeeDetailModal();
+  openFeeItemModal(id);
+}
+function deleteFeeItemConfirm(){
+  if(!currentFeeDetailId) return;
+  const item = feeItems.find(f=>f.id===currentFeeDetailId);
+  if(!item) return;
+  if(!confirm(`Xóa khoản thu "${item.name}"? Toàn bộ lịch sử đóng tiền của khoản này cũng sẽ bị xóa. Không thể hoàn tác.`)) return;
+  deleteFeeItem(currentFeeDetailId);
+  closeFeeDetailModal();
+  renderFeeTab();
+  toast('Đã xóa khoản thu');
+}
+function renderFeeDetailTable(){
+  const item = feeItems.find(f=>f.id===currentFeeDetailId);
+  if(!item){ closeFeeDetailModal(); return; }
+  document.getElementById('feeDetailTitle').textContent = item.name;
+  document.getElementById('feeDetailSub').textContent = `${formatMoney(item.amount)}/em${item.dueDate ? ' · Hạn đóng: '+formatDate(item.dueDate) : ''}`;
+  const sorted = [...students].sort(byGivenName);
+  document.getElementById('feeDetailTbody').innerHTML = sorted.map(s=>{
+    const st = feeStatusFor(item, s.id);
+    const badgeClass = st.status==='paid' ? 'present' : (st.status==='partial' ? 'excused' : 'absent');
+    const badgeLabel = st.status==='paid' ? 'Đã đủ' : (st.status==='partial' ? 'Còn thiếu' : 'Chưa đóng');
+    const history = paymentsFor(item.id, s.id);
+    const historyRows = history.length ? history.map(p=>`
+      <div class="row between" style="font-size:12px;padding:4px 0;border-top:1px dashed var(--border);">
+        <span>${formatDate(p.date)}${p.note ? ' · '+escapeHtml(p.note) : ''}</span>
+        <span class="row" style="gap:8px;align-items:center;">
+          <b>${formatMoney(p.amount)}</b>
+          <button class="icon-action danger" style="width:22px;height:22px;font-size:12px;" onclick="deleteFeePaymentRow('${p.id}')" title="Xóa">✕</button>
+        </span>
+      </div>
+    `).join('') : '<div class="muted" style="font-size:12px;padding:4px 0;">Chưa có lần đóng nào</div>';
+    return `
+      <tr>
+        <td>${escapeHtml(s.name)}</td>
+        <td>${formatMoney(st.paid)}</td>
+        <td>${formatMoney(st.remaining)}</td>
+        <td><span class="badge ${badgeClass}">${badgeLabel}</span></td>
+        <td>
+          <div class="row" style="gap:4px;flex-wrap:wrap;">
+            <button class="btn secondary small" onclick="openFeePaymentModal('${item.id}','${s.id}')">+ Ghi</button>
+            <button class="btn secondary small" onclick="openReceipt('${item.id}','${s.id}')">🧾</button>
+            <button class="btn secondary small" onclick="toggleFeeHistory('${s.id}')">▾</button>
+          </div>
+        </td>
+      </tr>
+      <tr id="feeHistoryRow_${s.id}" style="display:none;background:#FAFBFD;">
+        <td colspan="5" style="padding:6px 12px;">${historyRows}</td>
+      </tr>
+    `;
+  }).join('');
+}
+function toggleFeeHistory(studentId){
+  const row = document.getElementById('feeHistoryRow_'+studentId);
+  if(row) row.style.display = row.style.display==='none' ? '' : 'none';
+}
+
+let feePaymentContext = null;
+function openFeePaymentModal(feeItemId, studentId){
+  const item = feeItems.find(f=>f.id===feeItemId);
+  const s = students.find(x=>x.id===studentId);
+  if(!item || !s) return;
+  feePaymentContext = {feeItemId, studentId};
+  const st = feeStatusFor(item, studentId);
+  document.getElementById('feePaymentStudentLabel').textContent = `${s.name} — ${item.name} (còn thiếu ${formatMoney(st.remaining)})`;
+  document.getElementById('fp_amount').value = st.remaining > 0 ? st.remaining : '';
+  document.getElementById('fp_date').value = todayDateStr();
+  document.getElementById('fp_note').value = '';
+  document.getElementById('feePaymentModalOverlay').classList.add('open');
+}
+function closeFeePaymentModal(){
+  document.getElementById('feePaymentModalOverlay').classList.remove('open');
+  feePaymentContext = null;
+}
+function saveFeePayment(){
+  if(!feePaymentContext) return;
+  const amount = document.getElementById('fp_amount').value;
+  const date = document.getElementById('fp_date').value;
+  const note = document.getElementById('fp_note').value;
+  if(!amount || Number(amount) <= 0){ toast('Vui lòng nhập số tiền hợp lệ'); return; }
+  recordFeePayment(feePaymentContext.feeItemId, feePaymentContext.studentId, amount, date, note);
+  closeFeePaymentModal();
+  renderFeeDetailTable();
+  renderFeeTab();
+  toast('Đã ghi nhận đóng tiền');
+}
+function deleteFeePaymentRow(paymentId){
+  if(!confirm('Xóa lần đóng tiền này?')) return;
+  deleteFeePayment(paymentId);
+  renderFeeDetailTable();
+  renderFeeTab();
+  toast('Đã xóa');
+}
+
+let receiptCtx = null;
+function openReceipt(feeItemId, studentId){
+  const item = feeItems.find(f=>f.id===feeItemId);
+  const s = students.find(x=>x.id===studentId);
+  if(!item || !s) return;
+  const st = feeStatusFor(item, studentId);
+  const history = paymentsFor(feeItemId, studentId);
+  receiptCtx = { feeItemName: item.name, studentName: s.name, amount: item.amount, paid: st.paid, remaining: st.remaining, status: st.status, history, issuedAt: new Date().toISOString().slice(0,10) };
+  document.getElementById('feeReceiptCard').innerHTML = renderReceiptHTML(receiptCtx);
+  document.getElementById('feeReceiptModalOverlay').classList.add('open');
+}
+function closeFeeReceiptModal(){
+  document.getElementById('feeReceiptModalOverlay').classList.remove('open');
+  receiptCtx = null;
+}
+function renderReceiptHTML(ctx){
+  const statusLabel = ctx.status==='paid' ? '✅ Đã đóng đủ' : (ctx.status==='partial' ? '⏳ Còn thiếu' : '❌ Chưa đóng');
+  return `
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:32px;">🧾</div>
+      <h2 style="margin:6px 0 2px;">Phiếu thu — ${escapeHtml(ctx.feeItemName)}</h2>
+      <div class="muted">${escapeHtml(classNameInput.value || 'Lớp học')} · Ngày xuất: ${formatDate(ctx.issuedAt)}</div>
+    </div>
+    <div class="detail-section">
+      <h4>👦 Học sinh</h4>
+      <p style="font-weight:800;font-size:16px;">${escapeHtml(ctx.studentName)}</p>
+    </div>
+    <div class="detail-section">
+      <h4>💰 Tình trạng đóng phí</h4>
+      <p>Số tiền phải đóng: <b>${formatMoney(ctx.amount)}</b></p>
+      <p>Đã đóng: <b style="color:var(--green);">${formatMoney(ctx.paid)}</b></p>
+      <p>Còn thiếu: <b style="color:${ctx.remaining>0?'var(--red)':'var(--green)'};">${formatMoney(ctx.remaining)}</b></p>
+      <p>Trạng thái: <b>${statusLabel}</b></p>
+    </div>
+    <div class="detail-section">
+      <h4>📋 Lịch sử các lần đóng (${ctx.history.length})</h4>
+      ${ctx.history.length ? ctx.history.map(p=>`<p>${formatDate(p.date)}: <b>${formatMoney(p.amount)}</b>${p.note ? ' — '+escapeHtml(p.note) : ''}</p>`).join('') : '<p class="muted">Chưa có lần đóng nào.</p>'}
+    </div>
+  `;
+}
+function buildReceiptPlainText(ctx){
+  const lines = [];
+  lines.push(`PHIẾU THU — ${ctx.feeItemName.toUpperCase()}`);
+  if(classNameInput.value) lines.push(`Lớp: ${classNameInput.value}`);
+  lines.push(`Học sinh: ${ctx.studentName}`);
+  lines.push(`Ngày xuất: ${formatDate(ctx.issuedAt)}`);
+  lines.push('');
+  lines.push(`Số tiền phải đóng: ${formatMoney(ctx.amount)}`);
+  lines.push(`Đã đóng: ${formatMoney(ctx.paid)}`);
+  lines.push(`Còn thiếu: ${formatMoney(ctx.remaining)}`);
+  lines.push('');
+  lines.push(`LỊCH SỬ ĐÓNG (${ctx.history.length})`);
+  ctx.history.forEach(p=> lines.push(`- ${formatDate(p.date)}: ${formatMoney(p.amount)}${p.note ? ' — '+p.note : ''}`));
+  return lines.join('\n');
+}
+function copyReceiptText(){
+  if(!receiptCtx){ toast('Vui lòng mở phiếu thu trước'); return; }
+  const text = buildReceiptPlainText(receiptCtx);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=> toast('Đã sao chép — dán vào Zalo/Messenger để gửi')).catch(()=> toast('Không sao chép được'));
+  } else { toast('Trình duyệt không hỗ trợ sao chép tự động'); }
+}
+function downloadReceiptImage(){
+  if(!receiptCtx){ toast('Vui lòng mở phiếu thu trước'); return; }
+  if(!window.html2canvas){ toast('Không tải được thư viện xuất ảnh (cần kết nối mạng)'); return; }
+  const el = document.getElementById('feeReceiptCard');
+  toast('Đang tạo ảnh phiếu thu...');
+  html2canvas(el, {scale:2, backgroundColor:'#ffffff', useCORS:true}).then(canvas=>{
+    const link = document.createElement('a');
+    link.download = `phieu-thu-${safeFileName(receiptCtx.feeItemName)}-${safeFileName(receiptCtx.studentName)}.png`;
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link); link.click(); link.remove();
+  }).catch(()=> toast('Không tạo được ảnh'));
+}
+function downloadReceiptPDF(){
+  if(!receiptCtx){ toast('Vui lòng mở phiếu thu trước'); return; }
+  if(!window.html2canvas || !window.jspdf){ toast('Không tải được thư viện xuất PDF (cần kết nối mạng)'); return; }
+  const el = document.getElementById('feeReceiptCard');
+  toast('Đang tạo file PDF...');
+  html2canvas(el, {scale:2, backgroundColor:'#ffffff', useCORS:true}).then(canvas=>{
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','mm','a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const imgWidth = pageWidth;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight);
+    pdf.save(`phieu-thu-${safeFileName(receiptCtx.feeItemName)}-${safeFileName(receiptCtx.studentName)}.pdf`);
+  }).catch(()=> toast('Không tạo được PDF'));
+}
+
 // ================= BACKUP / RESTORE =================
 function backupData(){
-  const data = { students, attendance, classInfo, criteria, pointsLog, schedule, commentsLog, monthlyNotes, className: classNameInput.value, exportedAt: new Date().toISOString() };
+  const data = { students, attendance, classInfo, criteria, pointsLog, schedule, commentsLog, monthlyNotes, feeItems, feePayments, className: classNameInput.value, exportedAt: new Date().toISOString() };
   downloadFile('sao-luu-lop-hoc-' + new Date().toISOString().slice(0,10) + '.json', JSON.stringify(data,null,2), 'application/json');
 }
 function restoreData(evt){
@@ -3038,8 +3501,10 @@ function restoreData(evt){
       schedule = data.schedule || {};
       commentsLog = data.commentsLog || [];
       monthlyNotes = data.monthlyNotes || {};
+      feeItems = data.feeItems || [];
+      feePayments = data.feePayments || [];
       if(data.className){ classNameInput.value = data.className; localStorage.setItem(LS_CLASSNAME, data.className); }
-      saveStudents(); saveAttendanceData(); saveClassInfoData(); saveCriteriaData(); savePointsLog(); saveSchedule(); saveCommentsLog(); saveMonthlyNotesData();
+      saveStudents(); saveAttendanceData(); saveClassInfoData(); saveCriteriaData(); savePointsLog(); saveSchedule(); saveCommentsLog(); saveMonthlyNotesData(); saveFeeItems(); saveFeePayments();
       renderStudents(); renderSessionTab(); renderCriteriaTab(); renderStatsTab(); renderHomeTab();
       if(document.getElementById('tab-schedule').style.display !== 'none') renderScheduleTab();
       if(syncEnabled && fbUser){ pushFullStateToCloud(fbUser); toast('Đã phục hồi dữ liệu và đẩy lên đám mây'); }
@@ -3215,6 +3680,18 @@ async function pullFromCloud(user){
   monthlyNotes = newMonthlyNotes;
   saveMonthlyNotesData();
 
+  const feeItemsSnap = await uref.collection('feeItems').get();
+  const newFeeItems = [];
+  feeItemsSnap.forEach(doc=> newFeeItems.push(doc.data()));
+  feeItems = newFeeItems;
+  saveFeeItems();
+
+  const feePaymentsSnap = await uref.collection('feePayments').get();
+  const newFeePayments = [];
+  feePaymentsSnap.forEach(doc=> newFeePayments.push(doc.data()));
+  feePayments = newFeePayments;
+  saveFeePayments();
+
   refreshAllTabs();
   toast('Đã tải dữ liệu từ đám mây về máy này');
 }
@@ -3227,6 +3704,8 @@ async function pushFullStateToCloud(user){
   await batchSetAll(uref.collection('pointsLog'), pointsLog, item=>item.id, false);
   await batchSetAll(uref.collection('commentsLog'), commentsLog, item=>item.id, false);
   await batchSetAll(uref.collection('monthlyNotes'), Object.values(monthlyNotes), item=>item.id, false);
+  await batchSetAll(uref.collection('feeItems'), feeItems, item=>item.id, false);
+  await batchSetAll(uref.collection('feePayments'), feePayments, item=>item.id, false);
   toast('Đã đẩy dữ liệu từ máy này lên đám mây');
 }
 
@@ -3311,6 +3790,22 @@ function syncMonthlyNotePut(entry){
   if(!syncEnabled || !fbUser) return;
   userDocRef(fbUser.uid).collection('monthlyNotes').doc(entry.id).set(stripUndefinedDeep(entry)).catch(e=> console.warn('sync ghi chú báo cáo tháng lỗi', e));
 }
+function syncFeeItemPut(entry){
+  if(!syncEnabled || !fbUser) return;
+  userDocRef(fbUser.uid).collection('feeItems').doc(entry.id).set(stripUndefinedDeep(entry)).catch(e=> console.warn('sync khoản thu lỗi', e));
+}
+function syncFeeItemDelete(id){
+  if(!syncEnabled || !fbUser) return;
+  userDocRef(fbUser.uid).collection('feeItems').doc(id).delete().catch(e=> console.warn('sync xóa khoản thu lỗi', e));
+}
+function syncFeePaymentPut(entry){
+  if(!syncEnabled || !fbUser) return;
+  userDocRef(fbUser.uid).collection('feePayments').doc(entry.id).set(stripUndefinedDeep(entry)).catch(e=> console.warn('sync khoản đóng lỗi', e));
+}
+function syncFeePaymentDelete(id){
+  if(!syncEnabled || !fbUser) return;
+  userDocRef(fbUser.uid).collection('feePayments').doc(id).delete().catch(e=> console.warn('sync xóa khoản đóng lỗi', e));
+}
 
 // ---- lắng nghe thời gian thực: đám mây -> máy này (để thay đổi từ thiết bị khác tự hiện ra ở đây) ----
 function attachSyncListeners(user){
@@ -3387,6 +3882,30 @@ function attachSyncListeners(user){
       else { monthlyNotes[change.doc.id] = change.doc.data(); }
     });
     if(changed) saveMonthlyNotesData();
+  }));
+
+  syncUnsubscribers.push(uref.collection('feeItems').onSnapshot(snap=>{
+    if(snap.metadata.hasPendingWrites) return;
+    let changed = false;
+    snap.docChanges().forEach(change=>{
+      changed = true;
+      const idx = feeItems.findIndex(f=>f.id===change.doc.id);
+      if(change.type==='removed'){ if(idx>=0) feeItems.splice(idx,1); }
+      else { const data = change.doc.data(); if(idx>=0) feeItems[idx] = data; else feeItems.push(data); }
+    });
+    if(changed){ saveFeeItems(); if(typeof renderFeeTab==='function') renderFeeTab(); }
+  }));
+
+  syncUnsubscribers.push(uref.collection('feePayments').onSnapshot(snap=>{
+    if(snap.metadata.hasPendingWrites) return;
+    let changed = false;
+    snap.docChanges().forEach(change=>{
+      changed = true;
+      const idx = feePayments.findIndex(f=>f.id===change.doc.id);
+      if(change.type==='removed'){ if(idx>=0) feePayments.splice(idx,1); }
+      else { const data = change.doc.data(); if(idx>=0) feePayments[idx] = data; else feePayments.push(data); }
+    });
+    if(changed){ saveFeePayments(); if(typeof renderFeeTab==='function') renderFeeTab(); }
   }));
 }
 
