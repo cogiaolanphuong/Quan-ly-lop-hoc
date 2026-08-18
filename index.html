@@ -945,8 +945,8 @@
       <label class="full">Tên khoản thu
         <input id="fi_name" placeholder="VD: Học phí tháng 9, Dã ngoại Đà Lạt, Đồng phục...">
       </label>
-      <label>Số tiền / học sinh
-        <input id="fi_amount" type="number" min="0" step="1000" placeholder="VD: 500000">
+      <label>Số tiền / học sinh (nghìn đồng)
+        <input id="fi_amount" type="number" min="0" step="1" placeholder="VD: 500 = 500.000đ">
       </label>
       <label>Hạn đóng (tùy chọn)
         <input id="fi_dueDate" type="date">
@@ -987,15 +987,32 @@
   <div class="modal narrow">
     <h3>Ghi nhận đóng tiền</h3>
     <div class="muted" id="feePaymentStudentLabel" style="margin-top:-6px;margin-bottom:10px;"></div>
+    <div class="tab-toggle" id="feePaymentMethodToggle" style="margin-bottom:12px;">
+      <button type="button" data-method="transfer" class="active" onclick="setFeePaymentMethod('transfer')">🏦 Chuyển khoản</button>
+      <button type="button" data-method="cash" onclick="setFeePaymentMethod('cash')">💵 Tiền mặt</button>
+    </div>
     <div class="form-grid">
-      <label>Số tiền
-        <input id="fp_amount" type="number" min="0" step="1000">
+      <label>Số tiền đóng (nghìn đồng)
+        <input id="fp_amount" type="number" min="0" step="1" oninput="recalcFeeChange()">
       </label>
       <label>Ngày đóng
         <input id="fp_date" type="date">
       </label>
+      <label id="fp_cashGivenWrap" style="display:none;">Tiền phụ huynh đưa (nghìn đồng)
+        <input id="fp_cashGiven" type="number" min="0" step="1" oninput="recalcFeeChange()">
+      </label>
+      <label id="fp_changeWrap" style="display:none;">Tiền thối
+        <input id="fp_change" type="text" readonly style="background:#F5F6FA;">
+      </label>
+      <label class="full" id="fp_changeStatusWrap" style="display:none;">
+        <span style="display:block;margin-bottom:6px;font-size:13px;color:var(--muted);font-weight:700;">Trạng thái tiền thối</span>
+        <div class="tab-toggle" id="fp_changeStatusToggle">
+          <button type="button" data-status="returned" class="active" onclick="setChangeStatus('returned')">✅ Đã thối đủ</button>
+          <button type="button" data-status="pending" onclick="setChangeStatus('pending')">🏦 Chuyển khoản lại sau</button>
+        </div>
+      </label>
       <label class="full">Ghi chú (tùy chọn)
-        <input id="fp_note" placeholder="VD: đóng tiền mặt, chuyển khoản...">
+        <input id="fp_note" placeholder="VD: đóng lúc đón bé...">
       </label>
     </div>
     <div class="modal-actions">
@@ -3152,8 +3169,9 @@ function deleteFeeItem(feeItemId){
   removedPaymentIds.forEach(syncFeePaymentDelete);
   republishFeeSummaryForAll();
 }
-function recordFeePayment(feeItemId, studentId, amount, date, note){
-  const entry = { id: uid('pay'), feeItemId, studentId, amount: Number(amount)||0, date: date || todayDateStr(), note: (note||'').trim(), createdAt: Date.now() };
+// extra (tùy chọn): {method:'transfer'|'cash', cashGiven, change, changeStatus:'returned'|'pending'}
+function recordFeePayment(feeItemId, studentId, amount, date, note, extra){
+  const entry = { id: uid('pay'), feeItemId, studentId, amount: Number(amount)||0, date: date || todayDateStr(), note: (note||'').trim(), createdAt: Date.now(), ...(extra||{}) };
   feePayments.push(entry);
   saveFeePayments();
   syncFeePaymentPut(entry);
@@ -3263,17 +3281,18 @@ function openFeeItemModal(id){
   document.getElementById('feeItemModalTitle').textContent = id ? 'Sửa khoản thu' : 'Tạo khoản thu mới';
   const item = id ? feeItems.find(f=>f.id===id) : null;
   document.getElementById('fi_name').value = item ? item.name : '';
-  document.getElementById('fi_amount').value = item ? item.amount : '';
+  document.getElementById('fi_amount').value = item ? Math.round(item.amount/1000) : '';
   document.getElementById('fi_dueDate').value = item ? (item.dueDate||'') : '';
   document.getElementById('feeItemModalOverlay').classList.add('open');
 }
 function closeFeeItemModal(){ document.getElementById('feeItemModalOverlay').classList.remove('open'); }
 function saveFeeItem(){
   const name = document.getElementById('fi_name').value.trim();
-  const amount = document.getElementById('fi_amount').value;
+  const amountK = document.getElementById('fi_amount').value;
   const dueDate = document.getElementById('fi_dueDate').value;
   if(!name){ toast('Vui lòng nhập tên khoản thu'); return; }
-  if(!amount || Number(amount) <= 0){ toast('Vui lòng nhập số tiền hợp lệ'); return; }
+  if(!amountK || Number(amountK) <= 0){ toast('Vui lòng nhập số tiền hợp lệ'); return; }
+  const amount = Math.round(Number(amountK) * 1000);
   if(editingFeeItemId) updateFeeItem(editingFeeItemId, name, amount, dueDate);
   else createFeeItem(name, amount, dueDate);
   closeFeeItemModal();
@@ -3318,15 +3337,22 @@ function renderFeeDetailTable(){
     const badgeClass = st.status==='paid' ? 'present' : (st.status==='partial' ? 'excused' : 'absent');
     const badgeLabel = st.status==='paid' ? 'Đã đủ' : (st.status==='partial' ? 'Còn thiếu' : 'Chưa đóng');
     const history = paymentsFor(item.id, s.id);
-    const historyRows = history.length ? history.map(p=>`
-      <div class="row between" style="font-size:12px;padding:4px 0;border-top:1px dashed var(--border);">
-        <span>${formatDate(p.date)}${p.note ? ' · '+escapeHtml(p.note) : ''}</span>
-        <span class="row" style="gap:8px;align-items:center;">
-          <b>${formatMoney(p.amount)}</b>
-          <button class="icon-action danger" style="width:22px;height:22px;font-size:12px;" onclick="deleteFeePaymentRow('${p.id}')" title="Xóa">✕</button>
-        </span>
+    const historyRows = history.length ? history.map(p=>{
+      const methodLabel = p.method === 'cash' ? '💵 Tiền mặt' : '🏦 Chuyển khoản';
+      const pendingChange = p.method === 'cash' && p.change > 0 && p.changeStatus === 'pending';
+      return `
+      <div style="font-size:12px;padding:4px 0;border-top:1px dashed var(--border);">
+        <div class="row between">
+          <span>${formatDate(p.date)} · ${methodLabel}${p.note ? ' · '+escapeHtml(p.note) : ''}</span>
+          <span class="row" style="gap:8px;align-items:center;">
+            <b>${formatMoney(p.amount)}</b>
+            <button class="icon-action danger" style="width:22px;height:22px;font-size:12px;" onclick="deleteFeePaymentRow('${p.id}')" title="Xóa">✕</button>
+          </span>
+        </div>
+        ${p.method === 'cash' && p.change > 0 ? `<div class="muted" style="margin-top:2px;">Tiền đưa: ${formatMoney(p.cashGiven)} · Tiền thối: ${formatMoney(p.change)}${pendingChange ? ' · <b style="color:var(--red);">⚠️ Chưa thối, sẽ chuyển khoản lại</b>' : ' · Đã thối đủ'}</div>` : ''}
       </div>
-    `).join('') : '<div class="muted" style="font-size:12px;padding:4px 0;">Chưa có lần đóng nào</div>';
+    `;
+    }).join('') : '<div class="muted" style="font-size:12px;padding:4px 0;">Chưa có lần đóng nào</div>';
     return `
       <tr>
         <td>${escapeHtml(s.name)}</td>
@@ -3353,6 +3379,33 @@ function toggleFeeHistory(studentId){
 }
 
 let feePaymentContext = null;
+let feePaymentMethod = 'transfer';
+let feeChangeStatus = 'returned';
+// đơn vị nhập vào các ô tiền trong module Thu phí luôn là NGHÌN đồng (chỉ cần gõ 500 = 500.000đ)
+function toDong(thousandStr){ return Math.round((Number(thousandStr)||0) * 1000); }
+function setFeePaymentMethod(method){
+  feePaymentMethod = method;
+  document.querySelectorAll('#feePaymentMethodToggle button').forEach(b=> b.classList.toggle('active', b.dataset.method===method));
+  const showCash = method === 'cash';
+  document.getElementById('fp_cashGivenWrap').style.display = showCash ? '' : 'none';
+  document.getElementById('fp_changeWrap').style.display = showCash ? '' : 'none';
+  if(!showCash) document.getElementById('fp_changeStatusWrap').style.display = 'none';
+  recalcFeeChange();
+}
+function setChangeStatus(status){
+  feeChangeStatus = status;
+  document.querySelectorAll('#fp_changeStatusToggle button').forEach(b=> b.classList.toggle('active', b.dataset.status===status));
+}
+// tự tính tiền thối = tiền phụ huynh đưa - tiền đóng, chỉ áp dụng khi chọn Tiền mặt
+function recalcFeeChange(){
+  if(feePaymentMethod !== 'cash') return;
+  const amount = toDong(document.getElementById('fp_amount').value);
+  const given = toDong(document.getElementById('fp_cashGiven').value);
+  const change = given - amount;
+  const changeEl = document.getElementById('fp_change');
+  changeEl.value = change > 0 ? formatMoney(change) : (change < 0 ? 'Thiếu ' + formatMoney(-change) : '0đ');
+  document.getElementById('fp_changeStatusWrap').style.display = change > 0 ? '' : 'none';
+}
 function openFeePaymentModal(feeItemId, studentId){
   const item = feeItems.find(f=>f.id===feeItemId);
   const s = students.find(x=>x.id===studentId);
@@ -3360,9 +3413,13 @@ function openFeePaymentModal(feeItemId, studentId){
   feePaymentContext = {feeItemId, studentId};
   const st = feeStatusFor(item, studentId);
   document.getElementById('feePaymentStudentLabel').textContent = `${s.name} — ${item.name} (còn thiếu ${formatMoney(st.remaining)})`;
-  document.getElementById('fp_amount').value = st.remaining > 0 ? st.remaining : '';
+  document.getElementById('fp_amount').value = st.remaining > 0 ? Math.round(st.remaining/1000) : '';
   document.getElementById('fp_date').value = todayDateStr();
   document.getElementById('fp_note').value = '';
+  document.getElementById('fp_cashGiven').value = '';
+  document.getElementById('fp_change').value = '';
+  setFeePaymentMethod('transfer');
+  setChangeStatus('returned');
   document.getElementById('feePaymentModalOverlay').classList.add('open');
 }
 function closeFeePaymentModal(){
@@ -3371,11 +3428,21 @@ function closeFeePaymentModal(){
 }
 function saveFeePayment(){
   if(!feePaymentContext) return;
-  const amount = document.getElementById('fp_amount').value;
+  const amountK = document.getElementById('fp_amount').value;
   const date = document.getElementById('fp_date').value;
   const note = document.getElementById('fp_note').value;
-  if(!amount || Number(amount) <= 0){ toast('Vui lòng nhập số tiền hợp lệ'); return; }
-  recordFeePayment(feePaymentContext.feeItemId, feePaymentContext.studentId, amount, date, note);
+  if(!amountK || Number(amountK) <= 0){ toast('Vui lòng nhập số tiền hợp lệ'); return; }
+  const amount = toDong(amountK);
+  const extra = { method: feePaymentMethod };
+  if(feePaymentMethod === 'cash'){
+    const givenK = document.getElementById('fp_cashGiven').value;
+    const given = givenK ? toDong(givenK) : amount;
+    const change = Math.max(0, given - amount);
+    extra.cashGiven = given;
+    extra.change = change;
+    extra.changeStatus = change > 0 ? feeChangeStatus : null;
+  }
+  recordFeePayment(feePaymentContext.feeItemId, feePaymentContext.studentId, amount, date, note, extra);
   closeFeePaymentModal();
   renderFeeDetailTable();
   renderFeeTab();
@@ -3425,7 +3492,7 @@ function renderReceiptHTML(ctx){
     </div>
     <div class="detail-section">
       <h4>📋 Lịch sử các lần đóng (${ctx.history.length})</h4>
-      ${ctx.history.length ? ctx.history.map(p=>`<p>${formatDate(p.date)}: <b>${formatMoney(p.amount)}</b>${p.note ? ' — '+escapeHtml(p.note) : ''}</p>`).join('') : '<p class="muted">Chưa có lần đóng nào.</p>'}
+      ${ctx.history.length ? ctx.history.map(p=>`<p>${formatDate(p.date)} · ${p.method==='cash'?'💵 Tiền mặt':'🏦 Chuyển khoản'}: <b>${formatMoney(p.amount)}</b>${p.note ? ' — '+escapeHtml(p.note) : ''}${p.method==='cash' && p.change>0 ? ' (thối '+formatMoney(p.change)+(p.changeStatus==='pending'?' — chưa thối':'')+')' : ''}</p>`).join('') : '<p class="muted">Chưa có lần đóng nào.</p>'}
     </div>
   `;
 }
@@ -3441,7 +3508,7 @@ function buildReceiptPlainText(ctx){
   lines.push(`Còn thiếu: ${formatMoney(ctx.remaining)}`);
   lines.push('');
   lines.push(`LỊCH SỬ ĐÓNG (${ctx.history.length})`);
-  ctx.history.forEach(p=> lines.push(`- ${formatDate(p.date)}: ${formatMoney(p.amount)}${p.note ? ' — '+p.note : ''}`));
+  ctx.history.forEach(p=> lines.push(`- ${formatDate(p.date)} · ${p.method==='cash'?'Tiền mặt':'Chuyển khoản'}: ${formatMoney(p.amount)}${p.note ? ' — '+p.note : ''}${p.method==='cash' && p.change>0 ? ' (thối '+formatMoney(p.change)+(p.changeStatus==='pending'?', chưa thối':'')+')' : ''}`));
   return lines.join('\n');
 }
 function copyReceiptText(){
